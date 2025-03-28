@@ -74,7 +74,7 @@ void run(struct Environment *env){
                 env->reg[reg1] = env->reg[reg2];
             break;
             case I_MOVI: // MOVI
-                env->reg[reg1] = addr;
+                env->reg[reg1] = ((uint64_t) addr);
             break;
             case I_MOVZ: // MOVZ
                 if (env->flag & 1) env->reg[reg1] = env->reg[reg2];

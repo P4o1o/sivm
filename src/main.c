@@ -8,7 +8,7 @@ int main(int argc, char *argv[]){
     load_value(&env, values, 32, 5);
     uint64_t instr = ((uint64_t) 32) << ((uint64_t) 32);
     // instr |= (0 << 24);
-    instr |= I_LOAD;
+    instr |= I_MOVI;
     printf("%ld\n", instr);
     uint64_t program[2] = {instr, 0};
     load_prog(&env, program, 2);
