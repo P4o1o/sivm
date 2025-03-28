@@ -2,6 +2,8 @@
 #define SIVM_ENV_H
 
 #include <stdint.h>
+#include <string.h>
+#include "instruction_set.h"
 
 #define REG_NUM 16
 #define CALLSTACK_SIZE 1024
@@ -35,6 +37,7 @@ struct Environment{
     uint64_t vmem[MEM_SIZE];
 };
 
+void load_value(struct Environment *env, uint64_t *val, address start, address size);
 void load_prog(struct Environment *env, instr *prog, uint64_t p_size);
 void run(struct Environment *env);
 

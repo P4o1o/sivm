@@ -6,6 +6,9 @@
 
 %{
 #include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include "instruction_set.h"
 struct Inrstr {
     const char *mnem;
     uint8_t code;
@@ -15,43 +18,43 @@ struct Inrstr {
 %}
 struct Inrstr;
 %%
-EXIT,      0,            0, 0
-CLC,       0b00111000,   0, 0
-CMP,       0b00100000,   0, 2
-TEST,      0b00110000,   0, 1
-JUMP,      0b00010000,   1, 0
-JZ,        0b00010001,   1, 0
-JNZ,       0b00010010,   1, 0
-JL,        0b00010011,   1, 0
-JG,        0b00010100,   1, 0
-JLE,       0b00010101,   1, 0
-JGE,       0b00010110,   1, 0
-CALL,      0b00011000,   1, 0
-RET,       0b00011001,   1, 0
-MOVE,      0b00001000,   0, 2
-MOVI,      0b00001111,   1, 1
-MOVZ,      0b00001001,   1, 2
-MOVNZ,     0b00001010,   1, 2
-MOVL,      0b00001011,   1, 2
-MOVG,      0b00001100,   1, 2
-MOVLE,     0b00001101,   1, 2
-MOVGE,     0b00001110,   1, 2
-LOAD,      0b00000100,   1, 1
-STORE,     0b00000101,   1, 1
-PUSH,      0b00000010,   0, 1
-POP,       0b00000011,   0, 1
-NOP,       0b10000000,   0, 0
-ADD,       0b10000001,   0, 3
-SUB,       0b10000010,   0, 3
-MUL,       0b10000011,   0, 3
-DIV,       0b10000100,   0, 3
-MOD,       0b10000101,   0, 3
-INC,       0b10000110,   0, 1
-DEC,       0b10000111,   0, 1
-AND,       0b11000000,   0, 3
-OR,        0b11000001,   0, 3
-XOR,       0b11000010,   0, 3
-NOT,       0b11000011,   0, 2
-SHL,       0b11000100,   0, 3
-SHR,       0b11000101,   0, 3
+EXIT,      I_EXT,   0, 0
+CLC,       I_CLC,   0, 0
+CMP,       I_CMP,   0, 2
+TEST,      I_TEST,  0, 1
+JUMP,      I_JMP,   1, 0
+JZ,        I_JZ,    1, 0
+JNZ,       I_JNZ,   1, 0
+JL,        I_JL,    1, 0
+JG,        I_JG,    1, 0
+JLE,       I_JLE,   1, 0
+JGE,       I_JGE,   1, 0
+CALL,      I_CALL,  1, 0
+RET,       I_RET,   1, 0
+MOVE,      I_MOV,   0, 2
+MOVI,      I_MOVI,  1, 1
+MOVZ,      I_MOVZ,  1, 2
+MOVNZ,     I_MOVNZ, 1, 2
+MOVL,      I_MOVL,  1, 2
+MOVG,      I_MOVG,  1, 2
+MOVLE,     I_MOVLE, 1, 2
+MOVGE,     I_MOVGE, 1, 2
+LOAD,      I_LOAD,  1, 1
+STORE,     I_STORE, 1, 1
+PUSH,      I_PUSH,  0, 1
+POP,       I_POP,   0, 1
+NOP,       I_NOP,   0, 0
+ADD,       I_AND,   0, 3
+SUB,       I_SUB,   0, 3
+MUL,       I_MUL,   0, 3
+DIV,       I_DIV,   0, 3
+MOD,       I_MOD,   0, 3
+INC,       I_INC,   0, 1
+DEC,       I_DEC,   0, 1
+AND,       I_AND,   0, 3
+OR,        I_OR,    0, 3
+XOR,       I_XOR,   0, 3
+NOT,       I_NOT,   0, 2
+SHL,       I_SHL,   0, 3
+SHR,       I_SHR,   0, 3
 %%

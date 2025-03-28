@@ -1,5 +1,5 @@
 /* C code produced by gperf version 3.1 */
-/* Command-line: gperf -L C -t -N inrstr_lookup -K mnem instr.gperf  */
+/* Command-line: gperf -L C -t -N inrstr_lookup -K mnem src/instr.gperf  */
 /* Computed positions: -k'1-4' */
 
 #if !((' ' == 32) && ('!' == 33) && ('"' == 34) && ('#' == 35) \
@@ -29,16 +29,19 @@
 error "gperf generated tables don't work with this execution character set. Please report a bug to <bug-gperf@gnu.org>."
 #endif
 
-#line 7 "instr.gperf"
+#line 7 "src/instr.gperf"
 
 #include <stdint.h>
+#include <stddef.h>
+#include <string.h>
+#include "instruction_set.h"
 struct Inrstr {
     const char *mnem;
     uint8_t code;
     uint8_t addr;
     uint8_t r_num;
 };
-#line 16 "instr.gperf"
+#line 19 "src/instr.gperf"
 struct Inrstr;
 
 #define TOTAL_KEYWORDS 39
@@ -117,104 +120,104 @@ inrstr_lookup (str, len)
   static struct Inrstr wordlist[] =
     {
       {""}, {""},
-#line 25 "instr.gperf"
-      {"JL",        0b00010011,   1, 0},
-#line 48 "instr.gperf"
-      {"MOD",       0b10000101,   0, 3},
-#line 35 "instr.gperf"
-      {"MOVL",      0b00001011,   1, 2},
-#line 37 "instr.gperf"
-      {"MOVLE",     0b00001101,   1, 2},
+#line 28 "src/instr.gperf"
+      {"JL",        I_JL,    1, 0},
+#line 51 "src/instr.gperf"
+      {"MOD",       I_MOD,   0, 3},
+#line 38 "src/instr.gperf"
+      {"MOVL",      I_MOVL,  1, 2},
+#line 40 "src/instr.gperf"
+      {"MOVLE",     I_MOVLE, 1, 2},
       {""},
-#line 26 "instr.gperf"
-      {"JG",        0b00010100,   1, 0},
+#line 29 "src/instr.gperf"
+      {"JG",        I_JG,    1, 0},
       {""},
-#line 36 "instr.gperf"
-      {"MOVG",      0b00001100,   1, 2},
-#line 38 "instr.gperf"
-      {"MOVGE",     0b00001110,   1, 2},
+#line 39 "src/instr.gperf"
+      {"MOVG",      I_MOVG,  1, 2},
+#line 41 "src/instr.gperf"
+      {"MOVGE",     I_MOVGE, 1, 2},
       {""}, {""},
-#line 27 "instr.gperf"
-      {"JLE",       0b00010101,   1, 0},
-#line 31 "instr.gperf"
-      {"MOVE",      0b00001000,   0, 2},
+#line 30 "src/instr.gperf"
+      {"JLE",       I_JLE,   1, 0},
+#line 34 "src/instr.gperf"
+      {"MOVE",      I_MOV,   0, 2},
       {""}, {""},
-#line 23 "instr.gperf"
-      {"JZ",        0b00010001,   1, 0},
-#line 28 "instr.gperf"
-      {"JGE",       0b00010110,   1, 0},
-#line 33 "instr.gperf"
-      {"MOVZ",      0b00001001,   1, 2},
+#line 26 "src/instr.gperf"
+      {"JZ",        I_JZ,    1, 0},
+#line 31 "src/instr.gperf"
+      {"JGE",       I_JGE,   1, 0},
+#line 36 "src/instr.gperf"
+      {"MOVZ",      I_MOVZ,  1, 2},
       {""}, {""},
-#line 52 "instr.gperf"
-      {"OR",        0b11000001,   0, 3},
-#line 44 "instr.gperf"
-      {"ADD",       0b10000001,   0, 3},
-#line 39 "instr.gperf"
-      {"LOAD",      0b00000100,   1, 1},
-#line 34 "instr.gperf"
-      {"MOVNZ",     0b00001010,   1, 2},
+#line 55 "src/instr.gperf"
+      {"OR",        I_OR,    0, 3},
+#line 47 "src/instr.gperf"
+      {"ADD",       I_AND,   0, 3},
+#line 42 "src/instr.gperf"
+      {"LOAD",      I_LOAD,  1, 1},
+#line 37 "src/instr.gperf"
+      {"MOVNZ",     I_MOVNZ, 1, 2},
       {""}, {""},
-#line 50 "instr.gperf"
-      {"DEC",       0b10000111,   0, 1},
-#line 46 "instr.gperf"
-      {"MUL",       0b10000011,   0, 3},
+#line 53 "src/instr.gperf"
+      {"DEC",       I_DEC,   0, 1},
+#line 49 "src/instr.gperf"
+      {"MUL",       I_MUL,   0, 3},
       {""}, {""}, {""},
-#line 19 "instr.gperf"
-      {"CLC",       0b00111000,   0, 0},
-#line 55 "instr.gperf"
-      {"SHL",       0b11000100,   0, 3},
+#line 22 "src/instr.gperf"
+      {"CLC",       I_CLC,   0, 0},
+#line 58 "src/instr.gperf"
+      {"SHL",       I_SHL,   0, 3},
       {""}, {""}, {""},
-#line 24 "instr.gperf"
-      {"JNZ",       0b00010010,   1, 0},
-#line 29 "instr.gperf"
-      {"CALL",      0b00011000,   1, 0},
+#line 27 "src/instr.gperf"
+      {"JNZ",       I_JNZ,   1, 0},
+#line 32 "src/instr.gperf"
+      {"CALL",      I_CALL,  1, 0},
       {""}, {""}, {""},
-#line 51 "instr.gperf"
-      {"AND",       0b11000000,   0, 3},
-#line 45 "instr.gperf"
-      {"SUB",       0b10000010,   0, 3},
+#line 54 "src/instr.gperf"
+      {"AND",       I_AND,   0, 3},
+#line 48 "src/instr.gperf"
+      {"SUB",       I_SUB,   0, 3},
       {""}, {""}, {""},
-#line 20 "instr.gperf"
-      {"CMP",       0b00100000,   0, 2},
+#line 23 "src/instr.gperf"
+      {"CMP",       I_CMP,   0, 2},
       {""}, {""}, {""}, {""},
-#line 43 "instr.gperf"
-      {"NOP",       0b10000000,   0, 0},
-#line 56 "instr.gperf"
-      {"SHR",       0b11000101,   0, 3},
+#line 46 "src/instr.gperf"
+      {"NOP",       I_NOP,   0, 0},
+#line 59 "src/instr.gperf"
+      {"SHR",       I_SHR,   0, 3},
       {""}, {""}, {""},
-#line 47 "instr.gperf"
-      {"DIV",       0b10000100,   0, 3},
-#line 32 "instr.gperf"
-      {"MOVI",      0b00001111,   1, 1},
-#line 22 "instr.gperf"
-      {"JUMP",      0b00010000,   1, 0},
+#line 50 "src/instr.gperf"
+      {"DIV",       I_DIV,   0, 3},
+#line 35 "src/instr.gperf"
+      {"MOVI",      I_MOVI,  1, 1},
+#line 25 "src/instr.gperf"
+      {"JUMP",      I_JMP,   1, 0},
       {""}, {""},
-#line 42 "instr.gperf"
-      {"POP",       0b00000011,   0, 1},
+#line 45 "src/instr.gperf"
+      {"POP",       I_POP,   0, 1},
       {""}, {""}, {""}, {""},
-#line 54 "instr.gperf"
-      {"NOT",       0b11000011,   0, 2},
+#line 57 "src/instr.gperf"
+      {"NOT",       I_NOT,   0, 2},
       {""},
-#line 40 "instr.gperf"
-      {"STORE",     0b00000101,   1, 1},
+#line 43 "src/instr.gperf"
+      {"STORE",     I_STORE, 1, 1},
       {""}, {""},
-#line 53 "instr.gperf"
-      {"XOR",       0b11000010,   0, 3},
+#line 56 "src/instr.gperf"
+      {"XOR",       I_XOR,   0, 3},
       {""}, {""}, {""}, {""},
-#line 30 "instr.gperf"
-      {"RET",       0b00011001,   1, 0},
+#line 33 "src/instr.gperf"
+      {"RET",       I_RET,   1, 0},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""},
-#line 41 "instr.gperf"
-      {"PUSH",      0b00000010,   0, 1},
+#line 44 "src/instr.gperf"
+      {"PUSH",      I_PUSH,  0, 1},
       {""},
-#line 49 "instr.gperf"
-      {"INC",       0b10000110,   0, 1},
+#line 52 "src/instr.gperf"
+      {"INC",       I_INC,   0, 1},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""},
-#line 21 "instr.gperf"
-      {"TEST",      0b00110000,   0, 1},
+#line 24 "src/instr.gperf"
+      {"TEST",      I_TEST,  0, 1},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
@@ -222,8 +225,8 @@ inrstr_lookup (str, len)
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""},
-#line 18 "instr.gperf"
-      {"EXIT",      0,            0, 0}
+#line 21 "src/instr.gperf"
+      {"EXIT",      I_EXT,   0, 0}
     };
 
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
@@ -240,5 +243,5 @@ inrstr_lookup (str, len)
     }
   return 0;
 }
-#line 57 "instr.gperf"
+#line 60 "src/instr.gperf"
 

@@ -9,138 +9,143 @@ void load_prog(struct Environment *env, instr *prog, uint64_t p_size){
     env->link = 0;
 }
 
+void load_value(struct Environment *env, uint64_t *val, address start, address size){
+    memcpy(env->vmem + start, val, size * sizeof(uint64_t));
+}
+
 void run(struct Environment *env){
     while(1){
         instr code = env->program[env->prcount];
         env->prcount += 1;
+        uint64_t imm;
         uint8_t instrtype = INSTR_TYPE(code);
         uint8_t reg1 = INSTR_REG1(code);
         uint8_t reg2 = INSTR_REG2(code);
         uint8_t reg3 = INSTR_REG3(code);
         uint32_t addr = INSTR_ADDR(code);
         switch (instrtype){
-            case 0: // EXIT
+            case I_EXT: // EXIT
                 goto done;
             break;
-            case 0b01110000: // CLC
+            case I_CLC: // CLC
                 env->flag = 0;
             break;
-            case 0b00100000: // CMP
-                double cmp = env->reg[reg1] - env->reg[reg2];
-                env->flag |= (cmp == 0);  // 01 => 0; 10 => +; 00 => -
-                env->flag |= ((cmp > 0) << 1);
+            case I_CMP: // CMP
+                imm = env->reg[reg1] - env->reg[reg2];
+                env->flag |= (imm == 0);  // 01 => 0; 10 => +; 00 => -
+                env->flag |= ((imm > 0) << 1);
             break;
-            case 0b01100000: // TEST
-                double tst = env->reg[reg1];
-                env->flag |= (tst == 0);  // 01 => 0; 10 => +; 00 => -
-                env->flag |= ((tst > 0) << 1);
+            case I_TEST: // TEST
+                imm = env->reg[reg1];
+                env->flag |= (imm == 0);  // 01 => 0; 10 => +; 00 => -
+                env->flag |= ((imm > 0) << 1);
             break;
-            case 0b00010000: // JUMP
+            case I_JMP: // JUMP
                 env->prcount=addr;
             break;
-            case 0b00010001: // JZ
+            case I_JZ: // JZ
                 if (env->flag & 1) env->prcount = addr;
             break;
-            case 0b00010010: // JNZ
+            case I_JNZ: // JNZ
                 if (!(env->flag & 1)) env->prcount = addr;
             break;
-            case 0b00010011: // JL
+            case I_JL: // JL
                 if (!(env->flag & 11)) env->prcount = addr;
             break;
-            case 0b00010100: // JG
+            case I_JG: // JG
                 if ((env->flag & 10)) env->prcount = addr;
             break;
-            case 0b00010101: // JLE
+            case I_JLE: // JLE
                 if (!(env->flag & 10)) env->prcount = addr;
             break;
-            case 0b00010110: // JGE
+            case I_JGE: // JGE
                 if (env->flag & 11) env->prcount = addr;
             break;
-            case 0b00011000: // CALL
+            case I_CALL: // CALL
                 env->callstack[env->link] = env->prcount;
                 env->link++;
                 env->prcount=addr;
             break;
-            case 0b00011001: // RET
+            case I_RET: // RET
                 env->link--;
                 env->prcount = env->callstack[env->link];
             break;
-            case 0b00001000: // MOVE
+            case I_MOV: // MOVE
                 env->reg[reg1] = env->reg[reg2];
             break;
-            case 0b00001111: // MOVI
+            case I_MOVI: // MOVI
                 env->reg[reg1] = addr;
             break;
-            case 0b00001001: // MOVZ
+            case I_MOVZ: // MOVZ
                 if (env->flag & 1) env->reg[reg1] = env->reg[reg2];
             break;
-            case 0b00001010: // MOVNZ
+            case I_MOVNZ: // MOVNZ
                 if (!(env->flag & 1)) env->reg[reg1] = env->reg[reg2];
             break;
-            case 0b00001011: // MOVL
+            case I_MOVL: // MOVL
                 if (!(env->flag & 11)) env->reg[reg1] = env->reg[reg2];
             break;
-            case 0b00001100: // MOVG
+            case I_MOVG: // MOVG
                 if ((env->flag & 10)) env->reg[reg1] = env->reg[reg2];
             break;
-            case 0b00001101: // MOVLE
+            case I_MOVLE: // MOVLE
                 if (!(env->flag & 10)) env->reg[reg1] = env->reg[reg2];
             break;
-            case 0b00001110: // MOVGE
+            case I_MOVGE: // MOVGE
                 if (env->flag & 11) env->reg[reg1] = env->reg[reg2];
             break;
-            case 0b00000100: // LOAD
+            case I_LOAD: // LOAD
                 env->reg[reg1] = env->vmem[addr];
             break;
-            case 0b00000101: // STORE
+            case I_STORE: // STORE
                 env->vmem[addr] = env->reg[reg1];                
             break;
-            case 0b00000010: // PUSH
+            case I_PUSH: // PUSH
                 env->stack[env->snext + 1] = env->reg[reg1];
             break;
-            case 0b00000011: // POP
+            case I_POP: // POP
                 env->reg[reg1] = env->stack[env->snext - 1];
             break;
-            case 0b10000000:  // NOP
+            case I_NOP:  // NOP
                 continue;
             break;
-            case 0b10000001:  // ADD
+            case I_ADD:  // ADD
                 env->reg[reg1] = env->reg[reg2] + env->reg[reg3];
             break;
-            case 0b10000010:  // SUB
+            case I_SUB:  // SUB
                 env->reg[reg1] = env->reg[reg2] - env->reg[reg3];
             break;
-            case 0b10000011:  // MUL
+            case I_MUL:  // MUL
                 env->reg[reg1] = env->reg[reg2] * env->reg[reg3];
             break;
-            case 0b10000100: // DIV
+            case I_DIV: // DIV
                 env->reg[reg1] = env->reg[reg2] / env->reg[reg3];
             break;
-            case 0b10000101: // MOD
+            case I_MOD: // MOD
                 env->reg[reg1] = env->reg[reg2] % env->reg[reg3];
             break;
-            case 0b10000110: // INC
+            case I_INC: // INC
                 env->reg[reg1] += 1;
             break;
-            case 0b10000111: // DEC
+            case I_DEC: // DEC
                 env->reg[reg1] -= 1;
             break;
-            case 0b11000000: // AND
+            case I_AND: // AND
                 env->reg[reg1] = env->reg[reg2] & env->reg[reg3];
             break;
-            case 0b11000001: // OR
+            case I_OR: // OR
                 env->reg[reg1] = env->reg[reg2] | env->reg[reg3];
             break;
-            case 0b11000010: // XOR
+            case I_XOR: // XOR
                 env->reg[reg1] = env->reg[reg2] ^ env->reg[reg3];
             break;
-            case 0b11000011: // NOT
+            case I_NOT: // NOT
                 env->reg[reg1] = ~env->reg[reg1];
             break;
-            case 0b11000100: // SHL
+            case I_SHL: // SHL
                 env->reg[reg1] = env->reg[reg2] << env->reg[reg3];
             break;
-            case 0b11000101: // SHR
+            case I_SHR: // SHR
                 env->reg[reg1] = env->reg[reg2] >> env->reg[reg3];
             break;
             default:
@@ -148,4 +153,5 @@ void run(struct Environment *env){
         }
     }
 done:
+    return;
 }

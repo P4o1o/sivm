@@ -5,7 +5,7 @@ SRCDIR = src
 BINDIR = bin
 GPERF_INPUT = $(SRCDIR)/instr.gperf
 GPERF_OUTPUT = $(SRCDIR)/instr_hash.c
-SRCFILES = $(wildcard $(SRCDIR)/*.c) $(GPERF_OUTPUT)
+SRCFILES = $(wildcard $(SRCDIR)/*.c)
 OBJFILES = $(patsubst $(SRCDIR)/%.c,$(BINDIR)/%.o,$(SRCFILES))
 
 all: $(GPERF_OUTPUT) sivm
