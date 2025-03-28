@@ -44,7 +44,7 @@ STORE,     I_STORE, 1, 1
 PUSH,      I_PUSH,  0, 1
 POP,       I_POP,   0, 1
 NOP,       I_NOP,   0, 0
-ADD,       I_AND,   0, 3
+ADD,       I_ADD,   0, 3
 SUB,       I_SUB,   0, 3
 MUL,       I_MUL,   0, 3
 DIV,       I_DIV,   0, 3

@@ -152,7 +152,7 @@ inrstr_lookup (str, len)
 #line 55 "src/instr.gperf"
       {"OR",        I_OR,    0, 3},
 #line 47 "src/instr.gperf"
-      {"ADD",       I_AND,   0, 3},
+      {"ADD",       I_ADD,   0, 3},
 #line 42 "src/instr.gperf"
       {"LOAD",      I_LOAD,  1, 1},
 #line 37 "src/instr.gperf"

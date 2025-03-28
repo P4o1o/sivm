@@ -7,6 +7,7 @@ void load_prog(struct Environment *env, instr *prog, uint64_t p_size){
     }
     env->prcount = 0;
     env->link = 0;
+    env->snext = 0;
 }
 
 void load_value(struct Environment *env, uint64_t *val, address start, address size){

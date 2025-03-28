@@ -17,6 +17,9 @@ int assemble_load_code(struct Environment *env, char *code){
         }
         current++;
     }
+    env->prcount = 0;
+    env->link = 0;
+    env->snext = 0;
     return 0;
 }
 
