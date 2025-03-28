@@ -51,4 +51,16 @@
 #define I_SHR ((uint8_t) 197) //    SHR     11000101
 
 
+
+#ifdef __GNUC__
+	#define UNREACHABLE __builtin_unreachable()
+#else
+#ifdef _MSC_VER
+	#define UNREACHABLE __assume(0);
+#else
+	[[noreturn]] inline void unreachable(){}
+	#define UNREACHABLE unreachable()
+#endif
+#endif
+
 #endif

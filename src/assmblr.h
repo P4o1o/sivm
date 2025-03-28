@@ -1,63 +1,13 @@
 #ifndef SIVM_ASSMBLR_H
 #define SIVM_ASSMBLR_H
 #include "env.h"
+#include <stdio.h>
+#include <ctype.h>
 
-#define IS_INDENT(c) ((c == '\t') || (c == '\r') || (c == '\a') || (c == '\v') || (c == '\b') || (c == '\e'))
+#define IS_INDENT(c) ((c == '\t') || (c == '\r') || (c == '\a') || (c == '\v') || (c == '\b') || (c == ' '))
 
-struct Inrstr{
-    char *mnem; // mnemonic
-    uint8_t code; // op code
-    uint8_t addr; // does it use an address?
-    uint8_t r_num; // number of registers
-};
 
-struct Inrstr instr_set[254] = {
-    []  = { "EXIT", 0, 0, 0 },
-
-    []  = { "CLC", 0b00111000, 0, 0 },
-    []  = { "CMP", 0b00100000, 0, 2 },
-    []  = { "TEST", 0b00110000, 0, 1 },
-
-    []  = { "JUMP", 0b00010000, 1, 0 },
-    []  = { "JZ", 0b00010001, 1, 0 },
-    []  = { "JNZ", 0b00010010, 1, 0 },
-    []  = { "JL", 0b00010011, 1, 0 },
-    []  = { "JG", 0b00010100, 1, 0 },
-    []  = { "JLE", 0b00010101, 1, 0 },
-    []  = { "JGE", 0b00010110, 1, 0 },
-    []  = { "CALL", 0b00011000, 1, 0 },
-    []  = { "RET", 0b00011001, 1, 0 },
-
-    []  = { "MOVE", 0b00001000, 0, 2 },
-    []  = { "MOVI", 0b00001111, 1, 1 },
-    []  = { "MOVZ", 0b00001001, 1, 2 },
-    []  = { "MOVNZ", 0b00001010, 1, 2 },
-    []  = { "MOVL", 0b00001011, 1, 2 },
-    []  = { "MOVG", 0b00001100, 1, 2 },
-    []  = { "MOVLE", 0b00001101, 1, 2 },
-    []  = { "MOVGE", 0b00001110, 1, 2 },
-
-    []  = { "LOAD", 0b00000100, 1, 1 },
-    []  = { "STORE", 0b00000101, 1, 1 },
-
-    []  = { "PUSH", 0b00000010, 0, 1 },
-    []  = { "POP", 0b00000011, 0, 1 },
-
-    []  = { "NOP", 0b10000000, 0, 0 },
-    []  = { "ADD", 0b10000001, 0, 3 },
-    []  = { "SUB", 0b10000010, 0, 3 },
-    []  = { "MUL", 0b10000011, 0, 3 },
-    [] = { "DIV", 0b10000100, 0, 3 },
-    [] = { "MOD", 0b10000101, 0, 3 },
-    [] = { "INC", 0b10000110, 0, 1 },
-    [] = { "DEC", 0b10000111, 0, 1 },
-
-    [] = { "AND", 0b11000000, 0, 3 },
-    [] = { "OR", 0b11000001, 0, 3 },
-    [] = { "XOR", 0b11000010, 0, 3 },
-    [] = { "NOT", 0b11000011, 0, 2 },
-    [] = { "SHL", 0b11000100, 0, 3 },
-    [] = { "SHR", 0b11000101, 0, 3 },
-}
+int assemble_load_code(struct Environment *env, char *code);
+char *assemble_line(char *line, uint64_t *res);
 
 #endif

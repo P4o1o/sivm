@@ -4,7 +4,7 @@ DFLAGS = -ggdb3
 SRCDIR = src
 BINDIR = bin
 GPERF_INPUT = $(SRCDIR)/instr.gperf
-GPERF_OUTPUT = $(SRCDIR)/instr_hash.c
+GPERF_OUTPUT = $(SRCDIR)/instr_hash.h
 SRCFILES = $(wildcard $(SRCDIR)/*.c)
 OBJFILES = $(patsubst $(SRCDIR)/%.c,$(BINDIR)/%.o,$(SRCFILES))
 
