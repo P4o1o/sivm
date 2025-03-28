@@ -4,9 +4,10 @@
 #include <stdint.h>
 
 #define REG_NUM 16
-#define STACK_SIZE 1024
-#define MEM_SIZE 4096
-#define PROG_SIZE 2048
+#define CALLSTACK_SIZE 1024
+#define STACK_SIZE 2048
+#define MEM_SIZE 8192
+#define PROG_SIZE 4096
 
 typedef uint64_t instr;
 typedef uint32_t address;
@@ -26,13 +27,15 @@ struct Environment{
     uint64_t reg[REG_NUM];
     uint32_t flag;
     address prcount;
-    address link;
     address snext;
+    address link;
+    address callstack[CALLSTACK_SIZE];
     instr program[PROG_SIZE];
     uint64_t stack[STACK_SIZE];
     uint64_t vmem[MEM_SIZE];
 };
 
+void load_prog(struct Environment *env, instr *prog, uint64_t p_size);
 void run(struct Environment *env);
 
 #endif
