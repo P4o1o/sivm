@@ -3,6 +3,102 @@
 
 int parse_error;
 
+char *assemble_load_values(struct Environment *env, char *code){
+    while(*code != '\0'){
+        while(*code == '\n' || IS_INDENT(*code)){
+            code++;
+        }
+        if(*code == '@'){
+            code++;
+            address addr;
+            while(IS_INDENT(*code)){
+                code++;
+            }
+            if(toupper((unsigned char) *code) == 'X'){
+                code++;
+                addr = 0;
+                while (1) {
+                    if(*code >= '0' && *code <= '9')
+                        addr = addr * 16 + (*code - '0');
+                    else if(toupper((unsigned char) *code) >= 'A' && toupper((unsigned char) *code) <= 'F'){
+                        addr = addr * 16 + (*code - 'A' + 10);
+                    }else{
+                        break;
+                    }
+                    code++;
+                }
+            }else if(toupper((unsigned char) *code) == 'B'){
+                code++;
+                addr = 0;
+                while (*code == '0' || *code == '1') {
+                    addr = addr * 2 + (*code - '0');
+                    code++;
+                }
+            }else if(*code >= '0' && *code <= '9'){
+                addr = *code - '0';
+                code++;
+                while (*code >= '0' && *code <= '9') {
+                    addr = addr * 10 + (*code - '0');
+                    code++;
+                }
+            }else{
+                printf("\nError unvalid address: %16s\n", code);
+                parse_error = 2;
+                return code;
+            }
+            while(IS_INDENT(*code)){
+                code++;
+            }
+            if(*code != ':'){
+                printf("\nError ':' is missing here: %16s\n", code);
+                parse_error = 1;
+                return code;
+            }
+            code++;
+            while(IS_INDENT(*code)){
+                code++;
+            }
+            uint64_t value;
+            if(toupper((unsigned char) *code) == 'X'){
+                code++;
+                value = 0;
+                while (1) {
+                    if(*code >= '0' && *code <= '9')
+                    value = value * 16 + (*code - '0');
+                    else if(toupper((unsigned char) *code) >= 'A' && toupper((unsigned char) *code) <= 'F'){
+                        value = value * 16 + (*code - 'A' + 10);
+                    }else{
+                        break;
+                    }
+                    code++;
+                }
+            }else if(toupper((unsigned char) *code) == 'B'){
+                code++;
+                value = 0;
+                while (*code == '0' || *code == '1') {
+                    value = value * 2 + (*code - '0');
+                    code++;
+                }
+            }else if(*code >= '0' && *code <= '9'){
+                value = *code - '0';
+                code++;
+                while (*code >= '0' && *code <= '9') {
+                    value = value * 10 + (*code - '0');
+                    code++;
+                }
+            }else{
+                printf("\nError unvalid value: %16s\n", code);
+                parse_error = 3;
+                return code;
+            }
+            env->vmem[addr] = value;
+        }else{
+            break;
+        }
+    }
+    return code;
+}
+
 int assemble_load_code(struct Environment *env, char *code){
     address current = 0;
     while(*code != '\0'){
@@ -34,7 +130,7 @@ char *assemble_line(char *line, uint64_t *res){
     mnemonic[i] = '\0';
     const struct Inrstr *op = inrstr_lookup(mnemonic, i);
     if (!op) {
-        printf("\nMnemonic sconosciuto: %s\n", mnemonic);
+        printf("\nMnemonic sconosciuto: %s in %16s\n", mnemonic, line);
         parse_error = -1;
         return line;
     }
@@ -77,11 +173,12 @@ char *assemble_line(char *line, uint64_t *res){
             return line;
         }
         if(toupper((unsigned char) *line) == 'X'){
+            line++;
             addr = 0;
             while (1) {
                 if(*line >= '0' && *line <= '9')
                     addr = addr * 16 + (*line - '0');
-                else if(toupper((unsigned char) *line) >= 'A' || toupper((unsigned char) *line) <= 'F'){
+                else if(toupper((unsigned char) *line) >= 'A' && toupper((unsigned char) *line) <= 'F'){
                     addr = addr * 16 + (*line - 'A' + 10);
                 }else{
                     break;
@@ -94,6 +191,7 @@ char *assemble_line(char *line, uint64_t *res){
                 return line;
             }
         }else if(toupper((unsigned char) *line) == 'B'){
+            line++;
             addr = 0;
             while (*line == '0' || *line == '1') {
                 addr = addr * 2 + (*line - '0');

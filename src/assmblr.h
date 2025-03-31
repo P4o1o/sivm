@@ -7,6 +7,7 @@
 #define IS_INDENT(c) ((c == '\t') || (c == '\r') || (c == '\a') || (c == '\v') || (c == '\b') || (c == ' '))
 
 
+char *assemble_load_values(struct Environment *env, char *code);
 int assemble_load_code(struct Environment *env, char *code);
 char *assemble_line(char *line, uint64_t *res);
 

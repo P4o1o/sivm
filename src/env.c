@@ -32,11 +32,13 @@ void run(struct Environment *env){
                 env->flag = 0;
             break;
             case I_CMP: // CMP
+                env->flag = 0;
                 imm = env->reg[reg1] - env->reg[reg2];
                 env->flag |= (imm == 0);  // 01 => 0; 10 => +; 00 => -
                 env->flag |= ((imm >> 63) << 1);
             break;
             case I_TEST: // TEST
+                env->flag = 0;
                 imm = env->reg[reg1];
                 env->flag |= (imm == 0);  // 01 => 0; 10 => +; 00 => -
                 env->flag |= ((imm >> 63) << 1);

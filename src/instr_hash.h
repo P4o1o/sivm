@@ -44,12 +44,12 @@ struct Inrstr {
 #line 19 "src/instr.gperf"
 struct Inrstr;
 
-#define TOTAL_KEYWORDS 39
+#define TOTAL_KEYWORDS 40
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 5
 #define MIN_HASH_VALUE 2
-#define MAX_HASH_VALUE 164
-/* maximum key range = 163, duplicates = 0 */
+#define MAX_HASH_VALUE 159
+/* maximum key range = 158, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -65,32 +65,32 @@ hash (str, len)
 {
   static unsigned char asso_values[] =
     {
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165,  20,  15,  15,   0,  10,
-      165,   5,  31,  55,   0, 165,   0,   0,  20,   0,
-       30, 165,  20,   0,  45,  26,   0, 165,  50, 165,
-       15, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165, 165, 165, 165, 165,
-      165, 165, 165, 165, 165, 165
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160,  20,   5,  15,   0,  10,
+      160,   5,  46,  55,   0, 160,   0,   0,  20,   0,
+       30, 160,  25,   0,  45,  26,   0, 160,  45, 160,
+       15, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160, 160, 160, 160, 160,
+      160, 160, 160, 160, 160, 160
     };
   register unsigned int hval = len;
 
@@ -122,109 +122,108 @@ inrstr_lookup (str, len)
       {""}, {""},
 #line 28 "src/instr.gperf"
       {"JL",        I_JL,    1, 0},
-#line 51 "src/instr.gperf"
+#line 52 "src/instr.gperf"
       {"MOD",       I_MOD,   0, 3},
-#line 38 "src/instr.gperf"
+#line 39 "src/instr.gperf"
       {"MOVL",      I_MOVL,  1, 2},
-#line 40 "src/instr.gperf"
+#line 41 "src/instr.gperf"
       {"MOVLE",     I_MOVLE, 1, 2},
       {""},
 #line 29 "src/instr.gperf"
       {"JG",        I_JG,    1, 0},
       {""},
-#line 39 "src/instr.gperf"
+#line 40 "src/instr.gperf"
       {"MOVG",      I_MOVG,  1, 2},
-#line 41 "src/instr.gperf"
+#line 42 "src/instr.gperf"
       {"MOVGE",     I_MOVGE, 1, 2},
       {""}, {""},
 #line 30 "src/instr.gperf"
       {"JLE",       I_JLE,   1, 0},
-#line 34 "src/instr.gperf"
+#line 35 "src/instr.gperf"
       {"MOVE",      I_MOV,   0, 2},
       {""}, {""},
 #line 26 "src/instr.gperf"
       {"JZ",        I_JZ,    1, 0},
 #line 31 "src/instr.gperf"
       {"JGE",       I_JGE,   1, 0},
-#line 36 "src/instr.gperf"
-      {"MOVZ",      I_MOVZ,  1, 2},
-      {""}, {""},
-#line 55 "src/instr.gperf"
-      {"OR",        I_OR,    0, 3},
-#line 47 "src/instr.gperf"
-      {"ADD",       I_ADD,   0, 3},
-#line 42 "src/instr.gperf"
-      {"LOAD",      I_LOAD,  1, 1},
 #line 37 "src/instr.gperf"
+      {"MOVZ",      I_MOVZ,  1, 2},
+      {""}, {""}, {""},
+#line 48 "src/instr.gperf"
+      {"ADD",       I_ADD,   0, 3},
+#line 43 "src/instr.gperf"
+      {"LOAD",      I_LOAD,  1, 1},
+#line 38 "src/instr.gperf"
       {"MOVNZ",     I_MOVNZ, 1, 2},
-      {""}, {""},
-#line 53 "src/instr.gperf"
+      {""},
+#line 56 "src/instr.gperf"
+      {"OR",        I_OR,    0, 3},
+#line 54 "src/instr.gperf"
       {"DEC",       I_DEC,   0, 1},
-#line 49 "src/instr.gperf"
+#line 50 "src/instr.gperf"
       {"MUL",       I_MUL,   0, 3},
       {""}, {""}, {""},
 #line 22 "src/instr.gperf"
       {"CLC",       I_CLC,   0, 0},
-#line 58 "src/instr.gperf"
-      {"SHL",       I_SHL,   0, 3},
+#line 49 "src/instr.gperf"
+      {"SUB",       I_SUB,   0, 3},
       {""}, {""}, {""},
 #line 27 "src/instr.gperf"
       {"JNZ",       I_JNZ,   1, 0},
-#line 32 "src/instr.gperf"
+#line 33 "src/instr.gperf"
       {"CALL",      I_CALL,  1, 0},
       {""}, {""}, {""},
-#line 54 "src/instr.gperf"
+#line 55 "src/instr.gperf"
       {"AND",       I_AND,   0, 3},
-#line 48 "src/instr.gperf"
-      {"SUB",       I_SUB,   0, 3},
+#line 32 "src/instr.gperf"
+      {"JREG",      I_JREG,  0, 1},
       {""}, {""}, {""},
 #line 23 "src/instr.gperf"
       {"CMP",       I_CMP,   0, 2},
-      {""}, {""}, {""}, {""},
-#line 46 "src/instr.gperf"
-      {"NOP",       I_NOP,   0, 0},
 #line 59 "src/instr.gperf"
-      {"SHR",       I_SHR,   0, 3},
+      {"SHL",       I_SHL,   0, 3},
       {""}, {""}, {""},
-#line 50 "src/instr.gperf"
+#line 47 "src/instr.gperf"
+      {"NOP",       I_NOP,   0, 0},
+      {""}, {""}, {""}, {""},
+#line 51 "src/instr.gperf"
       {"DIV",       I_DIV,   0, 3},
-#line 35 "src/instr.gperf"
+#line 36 "src/instr.gperf"
       {"MOVI",      I_MOVI,  1, 1},
 #line 25 "src/instr.gperf"
       {"JUMP",      I_JMP,   1, 0},
       {""}, {""},
-#line 45 "src/instr.gperf"
+#line 46 "src/instr.gperf"
       {"POP",       I_POP,   0, 1},
       {""}, {""}, {""}, {""},
-#line 57 "src/instr.gperf"
+#line 58 "src/instr.gperf"
       {"NOT",       I_NOT,   0, 2},
-      {""},
-#line 43 "src/instr.gperf"
-      {"STORE",     I_STORE, 1, 1},
-      {""}, {""},
-#line 56 "src/instr.gperf"
-      {"XOR",       I_XOR,   0, 3},
       {""}, {""}, {""}, {""},
-#line 33 "src/instr.gperf"
+#line 57 "src/instr.gperf"
+      {"XOR",       I_XOR,   0, 3},
+#line 60 "src/instr.gperf"
+      {"SHR",       I_SHR,   0, 3},
+#line 44 "src/instr.gperf"
+      {"STORE",     I_STORE, 1, 1},
+      {""}, {""}, {""}, {""}, {""}, {""}, {""},
+#line 34 "src/instr.gperf"
       {"RET",       I_RET,   1, 0},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
-      {""}, {""}, {""},
-#line 44 "src/instr.gperf"
-      {"PUSH",      I_PUSH,  0, 1},
-      {""},
-#line 52 "src/instr.gperf"
+#line 53 "src/instr.gperf"
       {"INC",       I_INC,   0, 1},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""},
 #line 24 "src/instr.gperf"
       {"TEST",      I_TEST,  0, 1},
+      {""},
+#line 45 "src/instr.gperf"
+      {"PUSH",      I_PUSH,  0, 1},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
-      {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
-      {""}, {""}, {""}, {""}, {""},
+      {""}, {""}, {""}, {""}, {""}, {""}, {""},
 #line 21 "src/instr.gperf"
       {"EXIT",      I_EXT,   0, 0}
     };
@@ -243,5 +242,5 @@ inrstr_lookup (str, len)
     }
   return 0;
 }
-#line 60 "src/instr.gperf"
+#line 61 "src/instr.gperf"
 

@@ -1,11 +1,13 @@
+
+@ xff : 32
+@ b1010010 : 45
+@ 34 : xff
+
+
 movi r1 32
 movi r0 57
-movi r5 100
-clc
-test r5
-jz 11
-dec r5
-and r0 r0 r1
-or r1 r1 r0
-jump 4
+load r2 34
+load r3 b1010010
+load r4 34
+
 exit
