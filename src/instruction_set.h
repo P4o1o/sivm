@@ -25,6 +25,7 @@
 #define I_JG ((uint8_t) 20) //      JG      00010100
 #define I_JLE ((uint8_t) 21) //     JLE     00010101
 #define I_JGE ((uint8_t) 22) //     JGE     00010110
+#define I_JREG ((uint8_t) 23) //    JGE     00010111
 
 #define I_CALL ((uint8_t) 24) //    CALL    00011000
 #define I_RET ((uint8_t) 25) //     RET     00011001

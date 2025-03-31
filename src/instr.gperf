@@ -29,6 +29,7 @@ JL,        I_JL,    1, 0
 JG,        I_JG,    1, 0
 JLE,       I_JLE,   1, 0
 JGE,       I_JGE,   1, 0
+JREG,      I_JREG,  0, 1
 CALL,      I_CALL,  1, 0
 RET,       I_RET,   1, 0
 MOVE,      I_MOV,   0, 2

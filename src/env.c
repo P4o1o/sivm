@@ -34,12 +34,12 @@ void run(struct Environment *env){
             case I_CMP: // CMP
                 imm = env->reg[reg1] - env->reg[reg2];
                 env->flag |= (imm == 0);  // 01 => 0; 10 => +; 00 => -
-                env->flag |= ((imm > 0) << 1);
+                env->flag |= ((imm >> 63) << 1);
             break;
             case I_TEST: // TEST
                 imm = env->reg[reg1];
                 env->flag |= (imm == 0);  // 01 => 0; 10 => +; 00 => -
-                env->flag |= ((imm > 0) << 1);
+                env->flag |= ((imm >> 63) << 1);
             break;
             case I_JMP: // JUMP
                 env->prcount=addr;
@@ -61,6 +61,9 @@ void run(struct Environment *env){
             break;
             case I_JGE: // JGE
                 if (env->flag & 11) env->prcount = addr;
+            break;
+            case I_JREG: // JUMP
+                env->prcount=env->reg[reg1];
             break;
             case I_CALL: // CALL
                 env->callstack[env->link] = env->prcount;
