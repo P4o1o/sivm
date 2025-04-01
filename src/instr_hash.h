@@ -176,7 +176,7 @@ inrstr_lookup (str, len)
 #line 55 "src/instr.gperf"
       {"AND",       I_AND,   0, 3},
 #line 32 "src/instr.gperf"
-      {"JREG",      I_JREG,  0, 1},
+      {"JREG",      I_JREG,  1, 1},
       {""}, {""}, {""},
 #line 23 "src/instr.gperf"
       {"CMP",       I_CMP,   0, 2},

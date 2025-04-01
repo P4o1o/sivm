@@ -65,7 +65,7 @@ void run(struct Environment *env){
                 if (env->flag & 11) env->prcount = addr;
             break;
             case I_JREG: // JUMP
-                env->prcount=env->reg[reg1];
+                env->prcount = addr + env->reg[reg1];
             break;
             case I_CALL: // CALL
                 env->callstack[env->link] = env->prcount;

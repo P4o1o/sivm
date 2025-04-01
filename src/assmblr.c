@@ -3,6 +3,52 @@
 
 int parse_error;
 
+inline char *parse_addr_hex(char *code, address *res){
+    *res = 0;
+    while (1) {
+        if(*code >= '0' && *code <= '9')
+            *res = (*res << 4) | (*code - '0');
+        else if(toupper((unsigned char) *code) >= 'A' && toupper((unsigned char) *code) <= 'F'){
+            *res = (*res << 4) | (*code - 'A' + 10);
+        }else{
+            return code;
+        }
+        code++;
+    }
+}
+
+inline char *parse_uint_hex(char *code, uint64_t *res){
+    *res = 0;
+    while (1) {
+        if(*code >= '0' && *code <= '9')
+            *res = (*res << 4) | (*code - '0');
+        else if(toupper((unsigned char) *code) >= 'A' && toupper((unsigned char) *code) <= 'F'){
+            *res = (*res << 4) | (*code - 'A' + 10);
+        }else{
+            return code;
+        }
+        code++;
+    }
+}
+
+inline char *parse_addr_bin(char *code, address *res){
+    *res = 0;
+    while (*code == '0' || *code == '1') {
+        *res = (*res << 1) | (*code - '0');
+        code++;
+    }
+    return code;
+}
+
+inline char *parse_uint_bin(char *code, uint64_t *res){
+    *res = 0;
+    while (*code == '0' || *code == '1') {
+        *res = (*res << 1) | (*code - '0');
+        code++;
+    }
+    return code;
+}
+
 char *assemble_load_values(struct Environment *env, char *code){
     while(*code != '\0'){
         while(*code == '\n' || IS_INDENT(*code)){
@@ -16,24 +62,10 @@ char *assemble_load_values(struct Environment *env, char *code){
             }
             if(toupper((unsigned char) *code) == 'X'){
                 code++;
-                addr = 0;
-                while (1) {
-                    if(*code >= '0' && *code <= '9')
-                        addr = addr * 16 + (*code - '0');
-                    else if(toupper((unsigned char) *code) >= 'A' && toupper((unsigned char) *code) <= 'F'){
-                        addr = addr * 16 + (*code - 'A' + 10);
-                    }else{
-                        break;
-                    }
-                    code++;
-                }
+                code = parse_addr_hex(code, &addr);
             }else if(toupper((unsigned char) *code) == 'B'){
                 code++;
-                addr = 0;
-                while (*code == '0' || *code == '1') {
-                    addr = addr * 2 + (*code - '0');
-                    code++;
-                }
+                code = parse_addr_bin(code, &addr);
             }else if(*code >= '0' && *code <= '9'){
                 addr = *code - '0';
                 code++;
@@ -61,24 +93,10 @@ char *assemble_load_values(struct Environment *env, char *code){
             uint64_t value;
             if(toupper((unsigned char) *code) == 'X'){
                 code++;
-                value = 0;
-                while (1) {
-                    if(*code >= '0' && *code <= '9')
-                    value = value * 16 + (*code - '0');
-                    else if(toupper((unsigned char) *code) >= 'A' && toupper((unsigned char) *code) <= 'F'){
-                        value = value * 16 + (*code - 'A' + 10);
-                    }else{
-                        break;
-                    }
-                    code++;
-                }
+                code = parse_uint_hex(code, &value);
             }else if(toupper((unsigned char) *code) == 'B'){
                 code++;
-                value = 0;
-                while (*code == '0' || *code == '1') {
-                    value = value * 2 + (*code - '0');
-                    code++;
-                }
+                code = parse_uint_bin(code, &value);
             }else if(*code >= '0' && *code <= '9'){
                 value = *code - '0';
                 code++;
@@ -174,17 +192,7 @@ char *assemble_line(char *line, uint64_t *res){
         }
         if(toupper((unsigned char) *line) == 'X'){
             line++;
-            addr = 0;
-            while (1) {
-                if(*line >= '0' && *line <= '9')
-                    addr = addr * 16 + (*line - '0');
-                else if(toupper((unsigned char) *line) >= 'A' && toupper((unsigned char) *line) <= 'F'){
-                    addr = addr * 16 + (*line - 'A' + 10);
-                }else{
-                    break;
-                }
-                line++;
-            }
+            line = parse_addr_hex(line, &addr);
             if(*line != '\n' && *line != '\0' && ! IS_INDENT(*line)){
                 printf("\nUnespected char after an address: %s\n", line);
                 parse_error = -5;
@@ -192,11 +200,7 @@ char *assemble_line(char *line, uint64_t *res){
             }
         }else if(toupper((unsigned char) *line) == 'B'){
             line++;
-            addr = 0;
-            while (*line == '0' || *line == '1') {
-                addr = addr * 2 + (*line - '0');
-                line++;
-            }
+            line = parse_addr_bin(line, &addr);
             if(*line != '\n' && *line != '\0' && ! IS_INDENT(*line)){
                 printf("\nUnespected char after an address: %s\n", line);
                 parse_error = -5;
