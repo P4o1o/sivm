@@ -34,14 +34,14 @@ void run(struct Environment *env){
             case I_CMP: // CMP
                 env->flag = 0;
                 imm = env->reg[reg1] - env->reg[reg2];
-                env->flag |= (imm == 0);  // 01 => 0; 10 => +; 00 => -
-                env->flag |= ((imm >> 63) << 1);
+                env->flag |= (imm == 0);  // 01 => 0; 10 => -; 00 => +
+                env->flag |= (((uint32_t) (imm >> ((uint64_t) 63))) << 1);
             break;
             case I_TEST: // TEST
                 env->flag = 0;
                 imm = env->reg[reg1];
-                env->flag |= (imm == 0);  // 01 => 0; 10 => +; 00 => -
-                env->flag |= ((imm >> 63) << 1);
+                env->flag |= (imm == 0);  // 01 => 0; 10 => -; 00 => +
+                env->flag |= (((uint32_t) (imm >> ((uint64_t) 63))) << 1);
             break;
             case I_JMP: // JUMP
                 env->prcount=addr;
@@ -53,16 +53,16 @@ void run(struct Environment *env){
                 if (!(env->flag & 1)) env->prcount = addr;
             break;
             case I_JL: // JL
-                if (!(env->flag & 11)) env->prcount = addr;
-            break;
-            case I_JG: // JG
                 if ((env->flag & 10)) env->prcount = addr;
             break;
+            case I_JG: // JG
+                if ((env->flag & 11) == 0) env->prcount = addr;
+            break;
             case I_JLE: // JLE
-                if (!(env->flag & 10)) env->prcount = addr;
+                if (env->flag & 11) env->prcount = addr;
             break;
             case I_JGE: // JGE
-                if (env->flag & 11) env->prcount = addr;
+                if ((env->flag & 10) == 0) env->prcount = addr;
             break;
             case I_JREG: // JUMP
                 env->prcount = addr + env->reg[reg1];

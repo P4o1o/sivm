@@ -7,7 +7,12 @@
 movi r1 32
 movi r0 57
 load r2 34
+jump 6
 load r3 b1010010
 load r4 34
-
+add r1 r1 r0
+mul r2 r2 r0
+not r0 r0
+test r0
+jl 5
 exit
