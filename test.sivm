@@ -14,5 +14,15 @@ add r1 r1 r0
 mul r2 r2 r0
 not r0 r0
 test r0
-jl 5
+jl 4
+call 13
 exit
+
+
+movi r15 420
+movi r6 351
+sub r6 r15 r6
+push r15
+move r15 r6
+pop r15
+ret

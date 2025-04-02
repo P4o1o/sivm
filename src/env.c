@@ -89,16 +89,16 @@ void run(struct Environment *env){
                 if (!(env->flag & 1)) env->reg[reg1] = env->reg[reg2];
             break;
             case I_MOVL: // MOVL
-                if (!(env->flag & 11)) env->reg[reg1] = env->reg[reg2];
-            break;
-            case I_MOVG: // MOVG
                 if ((env->flag & 10)) env->reg[reg1] = env->reg[reg2];
             break;
+            case I_MOVG: // MOVG
+                if ((env->flag & 11) == 0) env->reg[reg1] = env->reg[reg2];
+            break;
             case I_MOVLE: // MOVLE
-                if (!(env->flag & 10)) env->reg[reg1] = env->reg[reg2];
+                if (env->flag & 11) env->reg[reg1] = env->reg[reg2];
             break;
             case I_MOVGE: // MOVGE
-                if (env->flag & 11) env->reg[reg1] = env->reg[reg2];
+                if ((env->flag & 10) == 0) env->reg[reg1] = env->reg[reg2];
             break;
             case I_LOAD: // LOAD
                 env->reg[reg1] = env->vmem[addr];
@@ -107,10 +107,12 @@ void run(struct Environment *env){
                 env->vmem[addr] = env->reg[reg1];                
             break;
             case I_PUSH: // PUSH
-                env->stack[env->snext + 1] = env->reg[reg1];
+                env->stack[env->snext] = env->reg[reg1];
+                env->snext += 1;
             break;
             case I_POP: // POP
-                env->reg[reg1] = env->stack[env->snext - 1];
+                env->snext -= 1;
+                env->reg[reg1] = env->stack[env->snext];
             break;
             case I_NOP:  // NOP
                 continue;
@@ -146,7 +148,7 @@ void run(struct Environment *env){
                 env->reg[reg1] = env->reg[reg2] ^ env->reg[reg3];
             break;
             case I_NOT: // NOT
-                env->reg[reg1] = ~env->reg[reg1];
+                env->reg[reg1] = ~ env->reg[reg1];
             break;
             case I_SHL: // SHL
                 env->reg[reg1] = env->reg[reg2] << env->reg[reg3];

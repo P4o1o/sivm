@@ -207,7 +207,7 @@ inrstr_lookup (str, len)
       {"STORE",     I_STORE, 1, 1},
       {""}, {""}, {""}, {""}, {""}, {""}, {""},
 #line 34 "src/instr.gperf"
-      {"RET",       I_RET,   1, 0},
+      {"RET",       I_RET,   0, 0},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
 #line 53 "src/instr.gperf"
       {"INC",       I_INC,   0, 1},
