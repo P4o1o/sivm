@@ -109,7 +109,7 @@ char *assemble_load_values(struct Environment *env, char *code){
                 parse_error = 3;
                 return code;
             }
-            env->vmem[addr] = value;
+            env->vmem[addr].i64 = value;
         }else{
             break;
         }

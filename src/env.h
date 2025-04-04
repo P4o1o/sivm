@@ -6,6 +6,7 @@
 #include "instruction_set.h"
 
 #define REG_NUM 16
+#define FREG_NUM 16
 #define CALLSTACK_SIZE 1024
 #define STACK_SIZE 2048
 #define MEM_SIZE 8192
@@ -25,8 +26,14 @@ typedef uint32_t address;
 #define INSTR_REG6(instr) (((uint8_t) (instr >> 56)))
 #define INSTR_REG7(instr) (((uint8_t) (instr >> 8)))
 
+union memblock{
+    uint64_t i64;
+    double f64;
+};
+
 struct Environment{
     uint64_t reg[REG_NUM];
+    uint64_t freg[FREG_NUM];
     uint32_t flag;
     address prcount;
     address snext;
@@ -34,7 +41,7 @@ struct Environment{
     address callstack[CALLSTACK_SIZE];
     instr program[PROG_SIZE];
     uint64_t stack[STACK_SIZE];
-    uint64_t vmem[MEM_SIZE];
+    union memblock vmem[MEM_SIZE];
 };
 
 void load_value(struct Environment *env, uint64_t *val, address start, address size);

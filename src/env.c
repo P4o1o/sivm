@@ -101,10 +101,10 @@ void run(struct Environment *env){
                 if ((env->flag & 10) == 0) env->reg[reg1] = env->reg[reg2];
             break;
             case I_LOAD: // LOAD
-                env->reg[reg1] = env->vmem[addr];
+                env->reg[reg1] = env->vmem[addr].i64;
             break;
             case I_STORE: // STORE
-                env->vmem[addr] = env->reg[reg1];                
+                env->vmem[addr].i64 = env->reg[reg1];                
             break;
             case I_PUSH: // PUSH
                 env->stack[env->snext] = env->reg[reg1];

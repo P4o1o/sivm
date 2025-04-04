@@ -1,0 +1,11 @@
+movi r0 1000
+movi r1 0
+movi r2 1
+add r3 r1 r2
+dec r0
+test r0
+jz 10
+move r1 r2
+move r2 r3
+jump 3
+exit
