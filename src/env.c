@@ -19,6 +19,7 @@ void run(struct Environment *env){
         instr code = env->program[env->prcount];
         env->prcount += 1;
         uint64_t imm;
+        double immf;
         uint8_t instrtype = INSTR_TYPE(code);
         uint8_t reg1 = INSTR_REG1(code);
         uint8_t reg2 = INSTR_REG2(code);
@@ -42,6 +43,18 @@ void run(struct Environment *env){
                 imm = env->reg[reg1];
                 env->flag |= (imm == 0);  // 01 => 0; 10 => -; 00 => +
                 env->flag |= (((uint32_t) (imm >> ((uint64_t) 63))) << 1);
+            break;
+            case I_CMPF: // CMPF
+                env->flag = 0;
+                immf = env->freg[reg1] - env->freg[reg2];
+                env->flag |= (immf == 0.0);  // 01 => 0; 10 => -; 00 => +
+                env->flag |= (((uint32_t) (immf < 0.0)) << 1);
+            break;
+            case I_TESTF: // TESTF
+                env->flag = 0;
+                immf = env->freg[reg1];
+                env->flag |= (immf == 0.0);  // 01 => 0; 10 => -; 00 => +
+                env->flag |= (((uint32_t) (immf < 0.0)) << 1);
             break;
             case I_JMP: // JUMP
                 env->prcount=addr;
@@ -107,12 +120,50 @@ void run(struct Environment *env){
                 env->vmem[addr].i64 = env->reg[reg1];                
             break;
             case I_PUSH: // PUSH
-                env->stack[env->snext] = env->reg[reg1];
+                env->stack[env->snext].i64 = env->reg[reg1];
                 env->snext += 1;
             break;
             case I_POP: // POP
                 env->snext -= 1;
-                env->reg[reg1] = env->stack[env->snext];
+                env->reg[reg1] = env->stack[env->snext].i64;
+            break;
+            case I_MOVF: // MOVF
+                env->freg[reg1] = env->freg[reg2];
+            break;
+            case I_MOVFI: // MOVFI
+                env->freg[reg1] = addr;// WEWE
+            break;
+            case I_MOVFZ: // MOVFZ
+                if (env->flag & 1) env->freg[reg1] = env->freg[reg2];
+            break;
+            case I_MOVFNZ: // MOVFNZ
+                if (!(env->flag & 1)) env->freg[reg1] = env->freg[reg2];
+            break;
+            case I_MOVFL: // MOVFL
+                if ((env->flag & 10)) env->freg[reg1] = env->freg[reg2];
+            break;
+            case I_MOVFG: // MOVFG
+                if ((env->flag & 11) == 0) env->freg[reg1] = env->freg[reg2];
+            break;
+            case I_MOVFLE: // MOVFLE
+                if (env->flag & 11) env->freg[reg1] = env->freg[reg2];
+            break;
+            case I_MOVFGE: // MOVFGE
+                if ((env->flag & 10) == 0) env->freg[reg1] = env->freg[reg2];
+            break;
+            case I_LOADF: // LOAD
+                env->freg[reg1] = env->vmem[addr].f64;
+            break;
+            case I_STOREF: // STORE
+                env->vmem[addr].f64 = env->freg[reg1];                
+            break;
+            case I_PUSHF: // PUSH
+                env->stack[env->snext].f64 = env->freg[reg1];
+                env->snext += 1;
+            break;
+            case I_POPF: // POP
+                env->snext -= 1;
+                env->freg[reg1] = env->stack[env->snext].f64;
             break;
             case I_NOP:  // NOP
                 continue;
@@ -128,6 +179,18 @@ void run(struct Environment *env){
             break;
             case I_DIV: // DIV
                 env->reg[reg1] = env->reg[reg2] / env->reg[reg3];
+            break;
+            case I_ADDF:  // ADDF
+                env->freg[reg1] = env->freg[reg2] + env->freg[reg3];
+            break;
+            case I_SUBF:  // SUBF
+                env->freg[reg1] = env->freg[reg2] - env->freg[reg3];
+            break;
+            case I_MULF:  // MUL
+                env->freg[reg1] = env->freg[reg2] * env->freg[reg3];
+            break;
+            case I_DIVF: // DIVF
+                env->freg[reg1] = env->freg[reg2] / env->freg[reg3];
             break;
             case I_MOD: // MOD
                 env->reg[reg1] = env->reg[reg2] % env->reg[reg3];
@@ -155,6 +218,12 @@ void run(struct Environment *env){
             break;
             case I_SHR: // SHR
                 env->reg[reg1] = env->reg[reg2] >> env->reg[reg3];
+            break;
+            case I_CAST: // CAST
+                env->reg[reg1] = (uint64_t) env->freg[reg2];
+            break;
+            case I_CASTF: // CASTF
+                env->freg[reg1] = (double) env->reg[reg2];
             break;
             default:
             break;

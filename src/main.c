@@ -41,6 +41,15 @@ int main(int argc, char *argv[]){
         }
         printf("\n\n");
     }
+    printf("-----------------------------------------------------\n\n");
+    printf("------------------ Float Registers ------------------\n\n");
+    for (int row = 0; row < 2; row++) {
+        for (int col = 0; col < 8; col++) {
+            int idx = row * 8 + col;
+            printf("| r%-2d:%8lf |", idx, env.freg[idx]);
+        }
+        printf("\n\n");
+    }
     printf("-----------------------------------------------------\n");
 
     free(code);

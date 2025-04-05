@@ -58,4 +58,5 @@ XOR,       I_XOR,   0, 3
 NOT,       I_NOT,   0, 2
 SHL,       I_SHL,   0, 3
 SHR,       I_SHR,   0, 3
+CAST,      I_CAST,  0, 2
 %%

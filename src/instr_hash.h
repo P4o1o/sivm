@@ -44,7 +44,7 @@ struct Inrstr {
 #line 19 "src/instr.gperf"
 struct Inrstr;
 
-#define TOTAL_KEYWORDS 40
+#define TOTAL_KEYWORDS 41
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 5
 #define MIN_HASH_VALUE 2
@@ -208,7 +208,9 @@ inrstr_lookup (str, len)
       {""}, {""}, {""}, {""}, {""}, {""}, {""},
 #line 34 "src/instr.gperf"
       {"RET",       I_RET,   0, 0},
-      {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
+#line 61 "src/instr.gperf"
+      {"CAST",      I_CAST,  0, 2},
+      {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
 #line 53 "src/instr.gperf"
       {"INC",       I_INC,   0, 1},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
@@ -242,5 +244,5 @@ inrstr_lookup (str, len)
     }
   return 0;
 }
-#line 61 "src/instr.gperf"
+#line 62 "src/instr.gperf"
 

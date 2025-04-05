@@ -137,7 +137,7 @@ int assemble_load_code(struct Environment *env, char *code){
     return 0;
 }
 
-char *assemble_line(char *line, uint64_t *res){
+char *assemble_line(char *line, instr *res){
     char mnemonic[8];
     size_t i = 0;
     while(! IS_INDENT(*line) && *line != '\n' && *line != '\0') {
@@ -152,6 +152,7 @@ char *assemble_line(char *line, uint64_t *res){
         parse_error = -1;
         return line;
     }
+    *res = (instr) op->code;
     uint8_t regs[7];
     address addr;
     for(int i = 0; i < op->r_num; i++){
@@ -164,6 +165,19 @@ char *assemble_line(char *line, uint64_t *res){
             return line;
         }
         if(toupper((unsigned char) *line) == 'R'){
+            line++;
+            regs[i] = 0;
+            while (*line >= '0' && *line <= '9') {
+                regs[i] = regs[i] * 10 + (*line - '0');
+                line++;
+            }
+            if(*line != '\n' && *line != '\0' && ! IS_INDENT(*line)){
+                printf("\nUnespected char after a register: %s\n", line);
+                parse_error = -6;
+                return line;
+            }
+        }else if(toupper((unsigned char) *line) == 'F'){
+            if(i == 0) *res |= 128;
             line++;
             regs[i] = 0;
             while (*line >= '0' && *line <= '9') {
@@ -224,24 +238,23 @@ char *assemble_line(char *line, uint64_t *res){
             return line;
         }
     }
-    *res = (uint64_t) op->code;
     if(op->addr)
-        *res |= ((uint64_t) addr) << ((uint64_t) 32);
+        *res |= ((instr) addr) << ((instr) 32);
     switch(op->r_num){
         case 7:
-            *res |= ((uint64_t) regs[6] << (uint64_t) 8);
+            *res |= ((instr) regs[6] << (instr) 8);
         case 6:
-            *res |= ((uint64_t) regs[5] << (uint64_t) 56);
+            *res |= ((instr) regs[5] << (instr) 56);
         case 5:
-            *res |= ((uint64_t) regs[4] << (uint64_t) 48);
+            *res |= ((instr) regs[4] << (instr) 48);
         case 4:
-            *res |= ((uint64_t) regs[3] << (uint64_t) 40);
+            *res |= ((instr) regs[3] << (instr) 40);
         case 3:
-            *res |= ((uint64_t) regs[2] << (uint64_t) 32);
+            *res |= ((instr) regs[2] << (instr) 32);
         case 2:
-            *res |= ((uint64_t) regs[1] << (uint64_t) 16);
+            *res |= ((instr) regs[1] << (instr) 16);
         case 1:
-            *res |= ((uint64_t) regs[0] << (uint64_t) 24);
+            *res |= ((instr) regs[0] << (instr) 24);
         case 0:
         break;
 

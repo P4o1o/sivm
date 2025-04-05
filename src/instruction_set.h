@@ -25,33 +25,58 @@
 #define I_JG ((uint8_t) 20) //      JG      00010100
 #define I_JLE ((uint8_t) 21) //     JLE     00010101
 #define I_JGE ((uint8_t) 22) //     JGE     00010110
-#define I_JREG ((uint8_t) 23) //    JGE     00010111
+#define I_JREG ((uint8_t) 23) //    JREG    00010111
 
 #define I_CALL ((uint8_t) 24) //    CALL    00011000
 #define I_RET ((uint8_t) 25) //     RET     00011001
 
-#define I_CLC ((uint8_t) 112) //    CLC     01110000
+#define I_CLC ((uint8_t) 56) //     CLC     00111000
 #define I_CMP ((uint8_t) 32) //     CMP     00100000
-#define I_TEST ((uint8_t) 96) //    TEST    01100000
+#define I_TEST ((uint8_t) 48) //    TEST    00110000
 
 #define I_NOP ((uint8_t) 128) //    NOP     10000000
 
-#define I_ADD ((uint8_t) 129) //    ADD     10000001
-#define I_SUB ((uint8_t) 130) //    SUB     10000010
-#define I_MUL ((uint8_t) 131) //    MUL     10000011
-#define I_DIV ((uint8_t) 132) //    DIV     10000100
-#define I_MOD ((uint8_t) 133) //    MOD     10000101
-#define I_INC ((uint8_t) 134) //    INC     10000110
-#define I_DEC ((uint8_t) 135) //    DEC     10000111
+#define I_ADD ((uint8_t) 65) //     ADD     01000001
+#define I_SUB ((uint8_t) 66) //     SUB     01000010
+#define I_MUL ((uint8_t) 67) //     MUL     01000011
+#define I_DIV ((uint8_t) 68) //     DIV     01000100
+#define I_MOD ((uint8_t) 69) //     MOD     01000101
+#define I_INC ((uint8_t) 70) //     INC     01000110
+#define I_DEC ((uint8_t) 71) //     DEC     01000111
 
-#define I_AND ((uint8_t) 192) //    AND     11000000
-#define I_OR ((uint8_t) 193) //     OR      11000001
-#define I_XOR ((uint8_t) 194) //    XOR     11000010
-#define I_NOT ((uint8_t) 195) //    NOT     11000011
-#define I_SHL ((uint8_t) 196) //    SHL     11000100
-#define I_SHR ((uint8_t) 197) //    SHR     11000101
+#define I_AND ((uint8_t) 97) //     AND     01100000
+#define I_OR ((uint8_t) 98) //      OR      01100001
+#define I_XOR ((uint8_t) 99) //     XOR     01100010
+#define I_NOT ((uint8_t) 100) //    NOT     01100011
+#define I_SHL ((uint8_t) 101) //    SHL     01100100
+#define I_SHR ((uint8_t) 102) //    SHR     01100101
 
+#define I_CAST ((uint8_t) 112) //  CASTI   01110000
 
+#define I_PUSHF ((uint8_t) 130) //  PUSH    10000010
+#define I_POPF ((uint8_t) 131) //   POP     10000011
+
+#define I_LOADF ((uint8_t) 132) //  LOAD    10000100
+#define I_STOREF ((uint8_t) 133) // STORE   10000101
+
+#define I_MOVF ((uint8_t) 136) //   MOVF    10001000
+#define I_MOVFZ ((uint8_t) 137) //  MOVFZ   10001001
+#define I_MOVFNZ ((uint8_t) 138) // MOVFNZ  10001010
+#define I_MOVFL ((uint8_t) 139) //  MOVFL   10001011
+#define I_MOVFG ((uint8_t) 140) //  MOVFG   10001100
+#define I_MOVFLE ((uint8_t) 141) // MOVFLE  10001101
+#define I_MOVFGE ((uint8_t) 142) // MOVFGE  10001110
+#define I_MOVFI ((uint8_t) 143) //  MOVFI   10001111
+
+#define I_CMPF ((uint8_t) 160) //   CMPF    10100000
+#define I_TESTF ((uint8_t) 176) //  TESTF   10110000
+
+#define I_ADDF ((uint8_t) 193) //   ADDF    11000001
+#define I_SUBF ((uint8_t) 194) //   SUBF    11000010
+#define I_MULF ((uint8_t) 195) //   MULF    11000011
+#define I_DIVF ((uint8_t) 196) //   DIVF    11000100
+
+#define I_CASTF ((uint8_t) 240) //  CASTF   11110000
 
 #ifdef __GNUC__
 	#define UNREACHABLE __builtin_unreachable()

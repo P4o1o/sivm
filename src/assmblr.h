@@ -9,6 +9,6 @@
 
 char *assemble_load_values(struct Environment *env, char *code);
 int assemble_load_code(struct Environment *env, char *code);
-char *assemble_line(char *line, uint64_t *res);
+char *assemble_line(char *line, instr *res);
 
 #endif

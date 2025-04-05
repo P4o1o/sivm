@@ -33,14 +33,14 @@ union memblock{
 
 struct Environment{
     uint64_t reg[REG_NUM];
-    uint64_t freg[FREG_NUM];
+    double freg[FREG_NUM];
     uint32_t flag;
     address prcount;
     address snext;
     address link;
     address callstack[CALLSTACK_SIZE];
     instr program[PROG_SIZE];
-    uint64_t stack[STACK_SIZE];
+    union memblock stack[STACK_SIZE];
     union memblock vmem[MEM_SIZE];
 };
 
