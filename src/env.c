@@ -165,9 +165,11 @@ void run(struct Environment *env){
                 env->snext -= 1;
                 env->freg[reg1] = env->stack[env->snext].f64;
             break;
+
             case I_NOP:  // NOP
                 continue;
             break;
+
             case I_ADD:  // ADD
                 env->reg[reg1] = env->reg[reg2] + env->reg[reg3];
             break;
@@ -201,6 +203,7 @@ void run(struct Environment *env){
             case I_DEC: // DEC
                 env->reg[reg1] -= 1;
             break;
+
             case I_AND: // AND
                 env->reg[reg1] = env->reg[reg2] & env->reg[reg3];
             break;
@@ -219,12 +222,59 @@ void run(struct Environment *env){
             case I_SHR: // SHR
                 env->reg[reg1] = env->reg[reg2] >> env->reg[reg3];
             break;
+
             case I_CAST: // CAST
                 env->reg[reg1] = (uint64_t) env->freg[reg2];
             break;
             case I_CASTF: // CASTF
                 env->freg[reg1] = (double) env->reg[reg2];
             break;
+
+            case I_COS: // COS
+                env->freg[reg1] = cos(env->freg[reg2]);
+            break;
+            case I_SIN: // SEN
+                env->freg[reg1] = sin(env->freg[reg2]);
+            break;
+            case I_TAN: // TAN
+                env->freg[reg1] = tan(env->freg[reg2]);
+            break;
+            case I_ACOS: // ACOS
+                env->freg[reg1] = acos(env->freg[reg2]);
+            break;
+            case I_ASIN: // ASEN
+                env->freg[reg1] = asin(env->freg[reg2]);
+            break;
+            case I_ATAN: // ATAN
+                env->freg[reg1] = atan(env->freg[reg2]);
+            break;
+            case I_COSH: // COSH
+                env->freg[reg1] = cosh(env->freg[reg2]);
+            break;
+            case I_SINH: // SENH
+                env->freg[reg1] = sinh(env->freg[reg2]);
+            break;
+            case I_TANH: // TANH
+                env->freg[reg1] = tanh(env->freg[reg2]);
+            break;
+
+            case I_SQRT: // SQRT
+                env->freg[reg1] = sqrt(env->freg[reg2]);
+            break;
+            case I_POW: // POW
+                env->freg[reg1] = pow(env->freg[reg2], env->freg[reg3]);
+            break;
+            case I_EXP: // EXP
+                env->freg[reg1] = exp(env->freg[reg2]);
+            break;
+            case I_LOG: // LOG
+                env->freg[reg1] = log(env->freg[reg2]);
+            break;
+            case I_LN: // LN
+                env->freg[reg1] = log2(env->freg[reg2]);
+            break;
+            case I_LOG10: // LOG10
+                env->freg[reg1] = log10(env->freg[reg2]);
             default:
             break;
         }

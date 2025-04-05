@@ -59,4 +59,19 @@ NOT,       I_NOT,   0, 2
 SHL,       I_SHL,   0, 3
 SHR,       I_SHR,   0, 3
 CAST,      I_CAST,  0, 2
+COS,       I_COS,   0, 2
+SIN,       I_SIN,   0, 2
+TAN,       I_TAN,   0, 2
+ACOS,      I_ACOS,  0, 2
+ASIN,      I_ASIN,  0, 2
+ATAN,      I_ATAN,  0, 2
+COSH,      I_COSH,  0, 2
+SINH,      I_SINH,  0, 2
+TANH,      I_TANH,  0, 2
+SQRT,      I_SQRT,  0, 2
+POW,       I_POW,   0, 3
+EXP,       I_EXP,   0, 2
+LN,        I_LN,    0, 2
+LOG,       I_LOG,   0, 2
+LOG10,     I_LOG10, 0, 2
 %%

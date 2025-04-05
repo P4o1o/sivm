@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <math.h>
 #include "instruction_set.h"
 
 #define REG_NUM 16
