@@ -44,12 +44,12 @@ struct Inrstr {
 #line 19 "src/instr.gperf"
 struct Inrstr;
 
-#define TOTAL_KEYWORDS 56
+#define TOTAL_KEYWORDS 59
 #define MIN_WORD_LENGTH 2
 #define MAX_WORD_LENGTH 5
-#define MIN_HASH_VALUE 3
-#define MAX_HASH_VALUE 129
-/* maximum key range = 127, duplicates = 0 */
+#define MIN_HASH_VALUE 9
+#define MAX_HASH_VALUE 125
+/* maximum key range = 117, duplicates = 0 */
 
 #ifdef __GNUC__
 __inline
@@ -65,32 +65,32 @@ hash (str, len)
 {
   static unsigned char asso_values[] =
     {
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130,   5,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130,   0,  50,   0,   5,  25,
-      130,  40,  40,  20,  35, 130,   0,   0,  15,  10,
-        7,  10,  20,  30,  30,   5,   0,   0,  50, 130,
-       45, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130, 130, 130, 130, 130,
-      130, 130, 130, 130, 130, 130
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126,   0,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126,   0,  35,   5,  30,  30,
+      126,   0,   7,   5,  40, 126,  25,   0,  10,  20,
+       31,  40,  50,   0,   0,  50,  20,   0,  50, 126,
+       40, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126, 126, 126, 126, 126,
+      126, 126, 126, 126, 126, 126
     };
   register unsigned int hval = len;
 
@@ -119,146 +119,146 @@ inrstr_lookup (str, len)
 {
   static struct Inrstr wordlist[] =
     {
-      {""}, {""}, {""},
-#line 22 "src/instr.gperf"
-      {"CLC",       I_CLC,   0, 0},
-#line 33 "src/instr.gperf"
-      {"CALL",      I_CALL,  1, 0},
-      {""}, {""}, {""},
-#line 50 "src/instr.gperf"
-      {"MUL",       I_MUL,   0, 3},
-      {""},
-#line 23 "src/instr.gperf"
-      {"CMP",       I_CMP,   0, 2},
-      {""}, {""},
-#line 48 "src/instr.gperf"
-      {"ADD",       I_ADD,   0, 3},
-#line 39 "src/instr.gperf"
-      {"MOVL",      I_MOVL,  1, 2},
-#line 41 "src/instr.gperf"
-      {"MOVLE",     I_MOVLE, 1, 2},
-      {""},
-#line 74 "src/instr.gperf"
-      {"LN",        I_LN,    0, 2},
-#line 52 "src/instr.gperf"
-      {"MOD",       I_MOD,   0, 3},
-#line 43 "src/instr.gperf"
-      {"LOAD",      I_LOAD,  1, 1},
-#line 72 "src/instr.gperf"
-      {"POW",       I_POW,   0, 3},
-      {""}, {""},
-#line 55 "src/instr.gperf"
-      {"AND",       I_AND,   0, 3},
-      {""}, {""}, {""},
-#line 46 "src/instr.gperf"
-      {"POP",       I_POP,   0, 1},
-#line 51 "src/instr.gperf"
-      {"DIV",       I_DIV,   0, 3},
-      {""},
-#line 38 "src/instr.gperf"
-      {"MOVNZ",     I_MOVNZ, 1, 2},
-      {""},
-#line 56 "src/instr.gperf"
-      {"OR",        I_OR,    0, 3},
-#line 54 "src/instr.gperf"
-      {"DEC",       I_DEC,   0, 1},
-#line 36 "src/instr.gperf"
-      {"MOVI",      I_MOVI,  1, 1},
-#line 47 "src/instr.gperf"
-      {"NOP",       I_NOP,   0, 0},
-      {""},
-#line 28 "src/instr.gperf"
-      {"JL",        I_JL,    1, 0},
-#line 53 "src/instr.gperf"
-      {"INC",       I_INC,   0, 1},
-#line 35 "src/instr.gperf"
-      {"MOVE",      I_MOV,   0, 2},
-      {""}, {""}, {""},
-#line 62 "src/instr.gperf"
-      {"COS",       I_COS,   0, 2},
-#line 65 "src/instr.gperf"
-      {"ACOS",      I_ACOS,  0, 2},
+      {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
+#line 61 "src/instr.gperf"
+      {"CAST",      I_CAST,  0, 2},
       {""}, {""}, {""},
 #line 64 "src/instr.gperf"
       {"TAN",       I_TAN,   0, 2},
 #line 67 "src/instr.gperf"
       {"ATAN",      I_ATAN,  0, 2},
+#line 73 "src/instr.gperf"
+      {"ATANH",     I_ATANH, 0, 2},
+      {""}, {""},
+#line 63 "src/instr.gperf"
+      {"SIN",       I_SIN,   0, 2},
+#line 66 "src/instr.gperf"
+      {"ASIN",      I_ASIN,  0, 2},
+#line 72 "src/instr.gperf"
+      {"ASINH",     I_ASINH, 0, 2},
+#line 70 "src/instr.gperf"
+      {"TANH",      I_TANH,  0, 2},
       {""},
-#line 25 "src/instr.gperf"
-      {"JUMP",      I_JMP,   1, 0},
+#line 53 "src/instr.gperf"
+      {"INC",       I_INC,   0, 1},
+      {""}, {""},
+#line 69 "src/instr.gperf"
+      {"SINH",      I_SINH,  0, 2},
       {""},
-#line 75 "src/instr.gperf"
-      {"LOG",       I_LOG,   0, 2},
+#line 62 "src/instr.gperf"
+      {"COS",       I_COS,   0, 2},
+#line 65 "src/instr.gperf"
+      {"ACOS",      I_ACOS,  0, 2},
+#line 71 "src/instr.gperf"
+      {"ACOSH",     I_ACOSH, 0, 2},
+      {""}, {""},
+#line 58 "src/instr.gperf"
+      {"NOT",       I_NOT,   0, 2},
+#line 24 "src/instr.gperf"
+      {"TEST",      I_TEST,  0, 1},
+#line 59 "src/instr.gperf"
+      {"SHL",       I_SHL,   0, 3},
+#line 68 "src/instr.gperf"
+      {"COSH",      I_COSH,  0, 2},
+#line 77 "src/instr.gperf"
+      {"LN",        I_LN,    0, 2},
+#line 22 "src/instr.gperf"
+      {"CLC",       I_CLC,   0, 0},
+#line 23 "src/instr.gperf"
+      {"CMP",       I_CMP,   0, 2},
+      {""}, {""},
+#line 29 "src/instr.gperf"
+      {"JG",        I_JG,    1, 0},
+#line 55 "src/instr.gperf"
+      {"AND",       I_AND,   0, 3},
 #line 40 "src/instr.gperf"
       {"MOVG",      I_MOVG,  1, 2},
 #line 42 "src/instr.gperf"
       {"MOVGE",     I_MOVGE, 1, 2},
       {""}, {""},
-#line 58 "src/instr.gperf"
-      {"NOT",       I_NOT,   0, 2},
-#line 37 "src/instr.gperf"
-      {"MOVZ",      I_MOVZ,  1, 2},
-#line 76 "src/instr.gperf"
+#line 78 "src/instr.gperf"
+      {"LOG",       I_LOG,   0, 2},
+#line 36 "src/instr.gperf"
+      {"MOVI",      I_MOVI,  1, 1},
+#line 79 "src/instr.gperf"
       {"LOG10",     I_LOG10, 0, 2},
       {""}, {""},
-#line 30 "src/instr.gperf"
-      {"JLE",       I_JLE,   1, 0},
-#line 61 "src/instr.gperf"
-      {"CAST",      I_CAST,  0, 2},
-      {""}, {""}, {""},
-#line 63 "src/instr.gperf"
-      {"SIN",       I_SIN,   0, 2},
-#line 66 "src/instr.gperf"
-      {"ASIN",      I_ASIN,  0, 2},
-      {""}, {""}, {""},
-#line 59 "src/instr.gperf"
-      {"SHL",       I_SHL,   0, 3},
-      {""}, {""}, {""},
-#line 29 "src/instr.gperf"
-      {"JG",        I_JG,    1, 0},
-#line 34 "src/instr.gperf"
-      {"RET",       I_RET,   0, 0},
-      {""}, {""}, {""},
-#line 26 "src/instr.gperf"
-      {"JZ",        I_JZ,    1, 0},
-#line 57 "src/instr.gperf"
-      {"XOR",       I_XOR,   0, 3},
-#line 68 "src/instr.gperf"
-      {"COSH",      I_COSH,  0, 2},
-#line 73 "src/instr.gperf"
-      {"EXP",       I_EXP,   0, 2},
-#line 45 "src/instr.gperf"
-      {"PUSH",      I_PUSH,  0, 1},
-      {""},
-#line 49 "src/instr.gperf"
-      {"SUB",       I_SUB,   0, 3},
-#line 70 "src/instr.gperf"
-      {"TANH",      I_TANH,  0, 2},
-      {""}, {""}, {""},
+#line 52 "src/instr.gperf"
+      {"MOD",       I_MOD,   0, 3},
+#line 75 "src/instr.gperf"
+      {"POW",       I_POW,   0, 3},
+#line 38 "src/instr.gperf"
+      {"MOVNZ",     I_MOVNZ, 1, 2},
+      {""}, {""},
+#line 51 "src/instr.gperf"
+      {"DIV",       I_DIV,   0, 3},
+#line 33 "src/instr.gperf"
+      {"CALL",      I_CALL,  1, 0},
 #line 60 "src/instr.gperf"
       {"SHR",       I_SHR,   0, 3},
-#line 71 "src/instr.gperf"
-      {"SQRT",      I_SQRT,  0, 2},
+      {""}, {""},
+#line 48 "src/instr.gperf"
+      {"ADD",       I_ADD,   0, 3},
+#line 47 "src/instr.gperf"
+      {"NOP",       I_NOP,   0, 0},
+      {""}, {""},
+#line 28 "src/instr.gperf"
+      {"JL",        I_JL,    1, 0},
+#line 54 "src/instr.gperf"
+      {"DEC",       I_DEC,   0, 1},
+#line 39 "src/instr.gperf"
+      {"MOVL",      I_MOVL,  1, 2},
+#line 41 "src/instr.gperf"
+      {"MOVLE",     I_MOVLE, 1, 2},
+      {""},
+#line 56 "src/instr.gperf"
+      {"OR",        I_OR,    0, 3},
+#line 31 "src/instr.gperf"
+      {"JGE",       I_JGE,   1, 0},
+#line 35 "src/instr.gperf"
+      {"MOVE",      I_MOV,   0, 2},
 #line 44 "src/instr.gperf"
       {"STORE",     I_STORE, 1, 1},
       {""}, {""},
+#line 50 "src/instr.gperf"
+      {"MUL",       I_MUL,   0, 3},
+#line 43 "src/instr.gperf"
+      {"LOAD",      I_LOAD,  1, 1},
+      {""}, {""},
+#line 26 "src/instr.gperf"
+      {"JZ",        I_JZ,    1, 0},
+#line 34 "src/instr.gperf"
+      {"RET",       I_RET,   0, 0},
+#line 37 "src/instr.gperf"
+      {"MOVZ",      I_MOVZ,  1, 2},
+#line 46 "src/instr.gperf"
+      {"POP",       I_POP,   0, 1},
+      {""}, {""},
+#line 49 "src/instr.gperf"
+      {"SUB",       I_SUB,   0, 3},
+#line 21 "src/instr.gperf"
+      {"EXIT",      I_EXT,   0, 0},
+      {""}, {""},
+#line 45 "src/instr.gperf"
+      {"PUSH",      I_PUSH,  0, 1},
 #line 27 "src/instr.gperf"
       {"JNZ",       I_JNZ,   1, 0},
-      {""}, {""}, {""}, {""},
-#line 31 "src/instr.gperf"
-      {"JGE",       I_JGE,   1, 0},
-      {""}, {""}, {""}, {""}, {""},
-#line 69 "src/instr.gperf"
-      {"SINH",      I_SINH,  0, 2},
+#line 74 "src/instr.gperf"
+      {"SQRT",      I_SQRT,  0, 2},
+      {""}, {""}, {""},
+#line 30 "src/instr.gperf"
+      {"JLE",       I_JLE,   1, 0},
       {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
-#line 24 "src/instr.gperf"
-      {"TEST",      I_TEST,  0, 1},
-      {""}, {""}, {""}, {""},
+      {""}, {""}, {""}, {""}, {""}, {""},
+#line 76 "src/instr.gperf"
+      {"EXP",       I_EXP,   0, 2},
+      {""}, {""}, {""}, {""}, {""}, {""}, {""}, {""},
+#line 57 "src/instr.gperf"
+      {"XOR",       I_XOR,   0, 3},
 #line 32 "src/instr.gperf"
       {"JREG",      I_JREG,  1, 1},
-      {""}, {""}, {""}, {""},
-#line 21 "src/instr.gperf"
-      {"EXIT",      I_EXT,   0, 0}
+#line 25 "src/instr.gperf"
+      {"JUMP",      I_JMP,   1, 0}
     };
 
   if (len <= MAX_WORD_LENGTH && len >= MIN_WORD_LENGTH)
@@ -275,5 +275,5 @@ inrstr_lookup (str, len)
     }
   return 0;
 }
-#line 77 "src/instr.gperf"
+#line 80 "src/instr.gperf"
 

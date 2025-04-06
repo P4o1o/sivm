@@ -1,5 +1,11 @@
 #ifndef SIVM_INSTRUCTION_SET_H
 #define SIVM_INSTRUCTION_SET_H
+/*
+INSTRUCTION 		0 0 0 0 0 0 0 0
+					| |
+					| math op bit
+					float reg bit
+*/
 
 #define I_EXT ((uint8_t) 0) //      EXIT    00000000
 
@@ -94,6 +100,9 @@
 #define I_COSH ((uint8_t) 246) //   COSH    11110110
 #define I_SINH ((uint8_t) 247) //   SENH    11110111
 #define I_TANH ((uint8_t) 248) //   TANH    11111000
+#define I_ACOSH ((uint8_t) 249) //  ACOSH   11111001
+#define I_ASINH ((uint8_t) 250) //  ASENH   11111010
+#define I_ATANH ((uint8_t) 251) //  ATANH   11111011
 
 #ifdef __GNUC__
 	#define UNREACHABLE __builtin_unreachable()

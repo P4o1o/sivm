@@ -68,6 +68,9 @@ ATAN,      I_ATAN,  0, 2
 COSH,      I_COSH,  0, 2
 SINH,      I_SINH,  0, 2
 TANH,      I_TANH,  0, 2
+ACOSH,     I_ACOSH, 0, 2
+ASINH,     I_ASINH, 0, 2
+ATANH,     I_ATANH, 0, 2
 SQRT,      I_SQRT,  0, 2
 POW,       I_POW,   0, 3
 EXP,       I_EXP,   0, 2

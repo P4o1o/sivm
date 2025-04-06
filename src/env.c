@@ -257,6 +257,15 @@ void run(struct Environment *env){
             case I_TANH: // TANH
                 env->freg[reg1] = tanh(env->freg[reg2]);
             break;
+            case I_ACOSH: // ACOSH
+                env->freg[reg1] = acosh(env->freg[reg2]);
+            break;
+            case I_ASINH: // ASENH
+                env->freg[reg1] = asinh(env->freg[reg2]);
+            break;
+            case I_ATANH: // ATANH
+                env->freg[reg1] = atanh(env->freg[reg2]);
+            break;
 
             case I_SQRT: // SQRT
                 env->freg[reg1] = sqrt(env->freg[reg2]);
