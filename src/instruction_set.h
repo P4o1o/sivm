@@ -1,10 +1,15 @@
 #ifndef SIVM_INSTRUCTION_SET_H
 #define SIVM_INSTRUCTION_SET_H
+
+#define INSTRUCTION_SET \
+	X()
+
 /*
-INSTRUCTION 		0 0 0 0 0 0 0 0
-					| |
-					| math op bit
-					float reg bit
+INSTRUCTION 		  0 0 0 0 0 0 0 0
+					  | | |
+					  | | math op bit
+					  | float reg bit
+					  vector/gpu
 */
 
 #define I_EXT ((uint8_t) 0) //      EXIT    00000000
@@ -36,73 +41,74 @@ INSTRUCTION 		0 0 0 0 0 0 0 0
 #define I_CALL ((uint8_t) 24) //    CALL    00011000
 #define I_RET ((uint8_t) 25) //     RET     00011001
 
-#define I_CLC ((uint8_t) 56) //     CLC     00111000
-#define I_CMP ((uint8_t) 32) //     CMP     00100000
-#define I_TEST ((uint8_t) 48) //    TEST    00110000
+#define I_SPAWN ((uint8_t) 26) //	SPAWN	00011010
 
-#define I_ADD ((uint8_t) 65) //     ADD     01000001
-#define I_SUB ((uint8_t) 66) //     SUB     01000010
-#define I_MUL ((uint8_t) 67) //     MUL     01000011
-#define I_DIV ((uint8_t) 68) //     DIV     01000100
-#define I_MOD ((uint8_t) 69) //     MOD     01000101
-#define I_INC ((uint8_t) 70) //     INC     01000110
-#define I_DEC ((uint8_t) 71) //     DEC     01000111
+#define I_CLC ((uint8_t) 29) //     CLC     00011101
+#define I_CMP ((uint8_t) 30) //     CMP     00011110
+#define I_TEST ((uint8_t) 31) //    TEST    00011111
 
-#define I_CAST ((uint8_t) 95) //    CASTI   01011111
+#define I_ADD ((uint8_t) 33) //     ADD     00100001
+#define I_SUB ((uint8_t) 34) //     SUB     00100010
+#define I_MUL ((uint8_t) 35) //     MUL     00100011
+#define I_DIV ((uint8_t) 36) //     DIV     00100100
+#define I_MOD ((uint8_t) 37) //     MOD     00100101
+#define I_INC ((uint8_t) 38) //     INC     00100110
+#define I_DEC ((uint8_t) 39) //     DEC     00100111
+#define I_AND ((uint8_t) 40) //     AND     00101000
+#define I_OR ((uint8_t) 41) //      OR      00101001
+#define I_XOR ((uint8_t) 42) //     XOR     00101010
+#define I_NOT ((uint8_t) 43) //    NOT     00101011
+#define I_SHL ((uint8_t) 44) //    SHL     00101100
+#define I_SHR ((uint8_t) 45) //    SHR     00101101
 
-#define I_AND ((uint8_t) 97) //     AND     01100000
-#define I_OR ((uint8_t) 98) //      OR      01100001
-#define I_XOR ((uint8_t) 99) //     XOR     01100010
-#define I_NOT ((uint8_t) 100) //    NOT     01100011
-#define I_SHL ((uint8_t) 101) //    SHL     01100100
-#define I_SHR ((uint8_t) 102) //    SHR     01100101
+#define I_CAST ((uint8_t) 63) //    CASTI   00111111
 
-#define I_NOP ((uint8_t) 128) //    NOP     10000000
 
-#define I_PUSHF ((uint8_t) 130) //  PUSHF   10000010
-#define I_POPF ((uint8_t) 131) //   POPF    10000011
+#define I_NOP ((uint8_t) 64) //     NOP     01000000
 
-#define I_LOADF ((uint8_t) 132) //  LOADF   10000100
-#define I_STOREF ((uint8_t) 133) // STOREF  10000101
+#define I_PUSHF ((uint8_t) 66) //  PUSHF   01000010
+#define I_POPF ((uint8_t) 67) //   POPF    01000011
 
-#define I_MOVF ((uint8_t) 136) //   MOVF    10001000
-#define I_MOVFZ ((uint8_t) 137) //  MOVFZ   10001001
-#define I_MOVFNZ ((uint8_t) 138) // MOVFNZ  10001010
-#define I_MOVFL ((uint8_t) 139) //  MOVFL   10001011
-#define I_MOVFG ((uint8_t) 140) //  MOVFG   10001100
-#define I_MOVFLE ((uint8_t) 141) // MOVFLE  10001101
-#define I_MOVFGE ((uint8_t) 142) // MOVFGE  10001110
-#define I_MOVFI ((uint8_t) 143) //  MOVFI   10001111
+#define I_LOADF ((uint8_t) 68) //  LOADF   01000100
+#define I_STOREF ((uint8_t) 69) // STOREF  01000101
 
-#define I_CMPF ((uint8_t) 160) //   CMPF    10100000
-#define I_TESTF ((uint8_t) 176) //  TESTF   10110000
+#define I_MOVF ((uint8_t) 72) //   MOVF    01001000
+#define I_MOVFZ ((uint8_t) 73) //  MOVFZ   01001001
+#define I_MOVFNZ ((uint8_t) 74) // MOVFNZ  01001010
+#define I_MOVFL ((uint8_t) 75) //  MOVFL   01001011
+#define I_MOVFG ((uint8_t) 76) //  MOVFG   01001100
+#define I_MOVFLE ((uint8_t) 77) // MOVFLE  01001101
+#define I_MOVFGE ((uint8_t) 78) // MOVFGE  01001110
+#define I_MOVFI ((uint8_t) 79) //  MOVFI   01001111
 
-#define I_ADDF ((uint8_t) 193) //   ADDF    11000001
-#define I_SUBF ((uint8_t) 194) //   SUBF    11000010
-#define I_MULF ((uint8_t) 195) //   MULF    11000011
-#define I_DIVF ((uint8_t) 196) //   DIVF    11000100
+#define I_CMPF ((uint8_t) 91) //   CMPF    01011011
+#define I_TESTF ((uint8_t) 92) //  TESTF   01011100
 
-#define I_SQRT ((uint8_t) 200) //   SQRT    11001000
-#define I_POW ((uint8_t) 201) //    POW     11001001
-#define I_EXP ((uint8_t) 202) //    EXP     11001010
-#define I_LN ((uint8_t) 203) //     LN      11001011
-#define I_LOG ((uint8_t) 204) //   	LOG     11001100
-#define I_LOG10 ((uint8_t) 205) //  LOG10   11001101
+#define I_ADDF ((uint8_t) 97) //    ADDF    01100001
+#define I_SUBF ((uint8_t) 98) //    SUBF    01100010
+#define I_MULF ((uint8_t) 99) //    MULF    01100011
+#define I_DIVF ((uint8_t) 100) //   DIVF    01100100
+#define I_SQRT ((uint8_t) 101) //   SQRT    01100101
+#define I_POW ((uint8_t) 102) //    POW     01100110
+#define I_EXP ((uint8_t) 103) //    EXP     01100111
+#define I_LN ((uint8_t) 104) //     LN      01101000
+#define I_LOG ((uint8_t) 105) //   	LOG     01101001
+#define I_LOG10 ((uint8_t) 106) //  LOG10   01101010
 
-#define I_CASTF ((uint8_t) 223) //  CASTF   11011111
+#define I_COS ((uint8_t) 112) //    COS     01110000
+#define I_SIN ((uint8_t) 113) //    SEN     01110001
+#define I_TAN ((uint8_t) 114) //    TAN     01110010
+#define I_ACOS ((uint8_t) 115) //   ACOS    01110011
+#define I_ASIN ((uint8_t) 116) //   ASEN    01110100
+#define I_ATAN ((uint8_t) 117) //   ATAN    01110101
+#define I_COSH ((uint8_t) 118) //   COSH    01110110
+#define I_SINH ((uint8_t) 119) //   SENH    01110111
+#define I_TANH ((uint8_t) 120) //   TANH    01111000
+#define I_ACOSH ((uint8_t) 121) //  ACOSH   01111001
+#define I_ASINH ((uint8_t) 122) //  ASENH   01111010
+#define I_ATANH ((uint8_t) 123) //  ATANH   01111011
 
-#define I_COS ((uint8_t) 240) //    COS     11110000
-#define I_SIN ((uint8_t) 241) //    SEN     11110001
-#define I_TAN ((uint8_t) 242) //    TAN     11110010
-#define I_ACOS ((uint8_t) 243) //   ACOS    11110011
-#define I_ASIN ((uint8_t) 244) //   ASEN    11110100
-#define I_ATAN ((uint8_t) 245) //   ATAN    11110101
-#define I_COSH ((uint8_t) 246) //   COSH    11110110
-#define I_SINH ((uint8_t) 247) //   SENH    11110111
-#define I_TANH ((uint8_t) 248) //   TANH    11111000
-#define I_ACOSH ((uint8_t) 249) //  ACOSH   11111001
-#define I_ASINH ((uint8_t) 250) //  ASENH   11111010
-#define I_ATANH ((uint8_t) 251) //  ATANH   11111011
+#define I_CASTF ((uint8_t) 127) //  CASTF   01111111
 
 #ifdef __GNUC__
 	#define UNREACHABLE __builtin_unreachable()

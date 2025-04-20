@@ -32,12 +32,15 @@ int main(int argc, char *argv[]){
     printf("Values Loaded\n\n");
     printf("%s\n\n", restofcode);
     assemble_load_code(&env, restofcode);
-    run(&env);
+
+#pragma omp master
+    run(&env, 0);
+
     printf("--------------------- Registers --------------------\n\n");
     for (int row = 0; row < 2; row++) {
         for (int col = 0; col < 8; col++) {
             int idx = row * 8 + col;
-            printf("| r%-2d:%8ld |", idx, env.reg[idx]);
+            printf("| r%-2d:%8ld |", idx, env.core[0].reg[idx]);
         }
         printf("\n\n");
     }
@@ -46,7 +49,7 @@ int main(int argc, char *argv[]){
     for (int row = 0; row < 2; row++) {
         for (int col = 0; col < 8; col++) {
             int idx = row * 8 + col;
-            printf("| f%-2d:%8lf |", idx, env.freg[idx]);
+            printf("| f%-2d:%8lf |", idx, env.core[0].freg[idx]);
         }
         printf("\n\n");
     }

@@ -119,6 +119,7 @@ char *assemble_load_values(struct Environment *env, char *code){
 
 int assemble_load_code(struct Environment *env, char *code){
     address current = 0;
+    memset(env->core, 0, sizeof(struct Core) * CORE_NUM);
     while(*code != '\0'){
         while(*code == '\n' || IS_INDENT(*code)){
             code++;
@@ -131,9 +132,6 @@ int assemble_load_code(struct Environment *env, char *code){
         }
         current++;
     }
-    env->prcount = 0;
-    env->link = 0;
-    env->snext = 0;
     return 0;
 }
 

@@ -1,6 +1,7 @@
 CC = gcc
 CFLAGS = -O3 -Wall -pedantic -std=c18
 DFLAGS = -ggdb3
+LIBFLAGS = -lm -fopenmp
 SRCDIR = src
 BINDIR = bin
 ASMDIR = assembly
@@ -13,10 +14,10 @@ ASMFILES = $(patsubst $(SRCDIR)/%.c,$(ASMDIR)/%.s,$(SRCFILES))
 all: $(GPERF_OUTPUT) sivm
 
 sivm: $(OBJFILES)
-	$(CC) $(CFLAGS) $(DFLAGS) -o $@ $(OBJFILES) -lm -fopenmp
+	$(CC) $(CFLAGS) $(DFLAGS) -o $@ $(OBJFILES) $(LIBFLAGS)
 
 $(BINDIR)/%.o: $(SRCDIR)/%.c | $(BINDIR)
-	$(CC) $(CFLAGS) $(DFLAGS) -c $< -o $@ -fopenmp
+	$(CC) $(CFLAGS) $(DFLAGS) -c $< -o $@ $(LIBFLAGS)
 
 asm: $(GPERF_OUTPUT) $(ASMFILES)
 
@@ -24,7 +25,7 @@ $(GPERF_OUTPUT): $(GPERF_INPUT)
 	gperf -L C -t -N inrstr_lookup -K mnem $< > $@
 
 $(ASMDIR)/%.s: $(SRCDIR)/%.c | $(ASMDIR)
-	$(CC) $(CFLAGS) -S -masm=intel $< -o $@
+	$(CC) $(CFLAGS) -S -masm=intel $< -o $@ $(LIBFLAGS)
 
 $(BINDIR) $(ASMDIR):
 	mkdir -p $@

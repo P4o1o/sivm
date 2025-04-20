@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <omp.h>
+#include <immintrin.h>
 #include "instruction_set.h"
 
 #define REG_NUM 16
@@ -12,6 +14,7 @@
 #define STACK_SIZE 2048
 #define MEM_SIZE 8192
 #define PROG_SIZE 4096
+#define CORE_NUM 4
 
 typedef uint64_t instr;
 typedef uint32_t address;
@@ -32,21 +35,26 @@ union memblock{
     double f64;
 };
 
-struct Environment{
+struct Core{
     uint64_t reg[REG_NUM];
     double freg[FREG_NUM];
-    uint32_t flag;
+    uint16_t status;
+    uint16_t flag;
     address prcount;
     address snext;
     address link;
-    address callstack[CALLSTACK_SIZE];
-    instr program[PROG_SIZE];
     union memblock stack[STACK_SIZE];
+    address callstack[PROG_SIZE];
+};
+
+struct Environment{
+    struct Core core[CORE_NUM];
     union memblock vmem[MEM_SIZE];
+    instr program[PROG_SIZE];
 };
 
 void load_value(struct Environment *env, uint64_t *val, address start, address size);
 void load_prog(struct Environment *env, instr *prog, uint64_t p_size);
-void run(struct Environment *env);
+void run(struct Environment *env, uint64_t core_num);
 
 #endif
