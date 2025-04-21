@@ -175,7 +175,7 @@ char *assemble_line(char *line, instr *res){
                 return line;
             }
         }else if(toupper((unsigned char) *line) == 'F'){
-            if(i == 0) *res |= 128;
+            if(i == 0) *res |= 64;
             line++;
             regs[i] = 0;
             while (*line >= '0' && *line <= '9') {
@@ -235,9 +235,8 @@ char *assemble_line(char *line, instr *res){
             parse_error = -7;
             return line;
         }
-    }
-    if(op->addr)
         *res |= ((instr) addr) << ((instr) 32);
+    }
     switch(op->r_num){
         case 7:
             *res |= ((instr) regs[6] << (instr) 8);

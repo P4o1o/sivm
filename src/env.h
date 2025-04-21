@@ -5,16 +5,18 @@
 #include <string.h>
 #include <math.h>
 #include <omp.h>
-#include <immintrin.h>
+#include <cuda_runtime.h>
 #include "instruction_set.h"
 
 #define REG_NUM 16
 #define FREG_NUM 16
+#define VREG_NUM 4
 #define CALLSTACK_SIZE 1024
 #define STACK_SIZE 2048
 #define MEM_SIZE 8192
 #define PROG_SIZE 4096
 #define CORE_NUM 4
+#define CUDA_MAX_STREAMS  8
 
 typedef uint64_t instr;
 typedef uint32_t address;
@@ -47,8 +49,16 @@ struct Core{
     address callstack[PROG_SIZE];
 };
 
+struct CudaCore{
+    uint64_t cudaDeviceCount;
+    cudaStream_t stream[CUDA_MAX_STREAMS];
+    void*        mem[MEM_SIZE];
+    uint8_t      next_stream;
+};
+
 struct Environment{
     struct Core core[CORE_NUM];
+    struct CudaCore gpu;
     union memblock vmem[MEM_SIZE];
     instr program[PROG_SIZE];
 };

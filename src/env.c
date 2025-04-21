@@ -17,29 +17,60 @@ void run(struct Environment *env, const uint64_t core_num){
     while(1){
         instr code = env->program[env->core[core_num].prcount];
         env->core[core_num].prcount += 1;
+
+        void* dptr;
+        cudaError_t err;
         uint64_t imm;
         double immf;
-        uint8_t instrtype = INSTR_TYPE(code);
-        uint8_t reg1 = INSTR_REG1(code);
-        uint8_t reg2 = INSTR_REG2(code);
-        uint8_t reg3 = INSTR_REG3(code);
-        uint32_t addr = INSTR_ADDR(code);
-        switch (instrtype){
-            case I_EXT: // EXIT
-                return;
-            case I_SPAWN:
-                imm = env->core[core_num].reg[reg1];
 
+        const enum InstrCode instrtype = INSTR_TYPE(code);
+        const uint8_t reg1 = INSTR_REG1(code);
+        const uint8_t reg2 = INSTR_REG2(code);
+        const uint8_t reg3 = INSTR_REG3(code);
+        const uint32_t addr = INSTR_ADDR(code);
+
+        switch (instrtype){
+            case I_STOP: // EXIT
+                return;
+            case I_EXIT: // EXIT
+                env->core[core_num].status = 0;
+                return;
+            case I_CMALLOC:
+                dptr = NULL;
+                err = cudaMalloc(&dptr, env->core[core_num].reg[reg1]);
+                env->core[core_num].reg[reg1] = (uint64_t) dptr;
+            break;
+            case I_CFREE:
+                err = cudaFree((void*)env->core[core_num].reg[reg1]);
+            break;
+            case I_CMOVH:
+                err = cudaMemcpy(
+                    (void*) env->core[core_num].reg[reg2],
+                    (void*) &(env->vmem[env->core[core_num].reg[reg1]]),
+                    env->core[core_num].reg[reg3], 
+                    cudaMemcpyDeviceToHost
+                );
+            break;
+            case I_CMOVD:
+                err = cudaMemcpy(
+                    (void*) env->core[core_num].reg[reg1],
+                    (void*) &(env->vmem[env->core[core_num].reg[reg2]]),
+                    env->core[core_num].reg[reg3], 
+                    cudaMemcpyHostToDevice
+                );
+            break;
+            case I_SPAWN:
                 #pragma omp atomic capture
-                    addr = env->core[imm].status++;
-                
-                if(addr){
+                {
+                    imm = env->core[reg1].status;
+                    env->core[reg1].status = 1;
+                }
+                if(imm){
                     continue;
                 }
-                env->core[imm].prcount = env->core[core_num].reg[reg2];
-
+                env->core[reg1].prcount = addr;
                 #pragma omp task
-                    run(env, imm);
+                    run(env, reg1);
             break;
             case I_CLC: // CLC
                 env->core[core_num].flag = 0;
@@ -179,7 +210,6 @@ void run(struct Environment *env, const uint64_t core_num){
             break;
 
             case I_NOP:  // NOP
-                continue;
             break;
 
             case I_ADD:  // ADD

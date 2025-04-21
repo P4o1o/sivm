@@ -1,7 +1,10 @@
+NVCC = nvcc
+CUDAFLAGS = -arch=native
+INCLUDES = -I/usr/local/cuda/include
 CC = gcc
-CFLAGS = -O3 -Wall -pedantic -std=c18
+CFLAGS = -O3 -Wall -pedantic -std=c18 $(INCLUDES)
 DFLAGS = -ggdb3
-LIBFLAGS = -lm -fopenmp
+LIBFLAGS = -lcudart -lm -fopenmp -L/usr/local/cuda/lib64
 SRCDIR = src
 BINDIR = bin
 ASMDIR = assembly
@@ -18,6 +21,9 @@ sivm: $(OBJFILES)
 
 $(BINDIR)/%.o: $(SRCDIR)/%.c | $(BINDIR)
 	$(CC) $(CFLAGS) $(DFLAGS) -c $< -o $@ $(LIBFLAGS)
+
+$(BINDIR)/%.o: $(SRCDIR)/%.cu | $(BINDIR)
+	$(NVCC) -dc $(CUDAFLAGS) $(INCLUDES) $< -o $@  
 
 asm: $(GPERF_OUTPUT) $(ASMFILES)
 

@@ -11,14 +11,14 @@
 #include "instruction_set.h"
 struct Inrstr {
     const char *mnem;
-    uint8_t code;
+    enum InstrCode code;
     uint8_t addr;
     uint8_t r_num;
 };
 %}
 struct Inrstr;
 %%
-EXIT,      I_EXT,   0, 0
+EXIT,      I_EXIT,   0, 0
 CLC,       I_CLC,   0, 0
 CMP,       I_CMP,   0, 2
 TEST,      I_TEST,  0, 1
@@ -77,4 +77,5 @@ EXP,       I_EXP,   0, 2
 LN,        I_LN,    0, 2
 LOG,       I_LOG,   0, 2
 LOG10,     I_LOG10, 0, 2
+SPAWN      I_SPAWN, 
 %%
