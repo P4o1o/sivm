@@ -1,41 +1,35 @@
-NVCC = nvcc
-CUDAFLAGS = -arch=native
-INCLUDES = -I/usr/local/cuda/include
 CC = gcc
-CFLAGS = -O3 -Wall -pedantic -std=c18 $(INCLUDES)
+CFLAGS = -O3 -Wall -std=c18 -I./src -I./src/lib -I./src/core -I./src/lib/thread
 DFLAGS = -ggdb3
-LIBFLAGS = -lcudart -lm -fopenmp -L/usr/local/cuda/lib64
+LIBFLAGS = -lm -lpthread -lrt
+
 SRCDIR = src
 BINDIR = bin
 ASMDIR = assembly
-GPERF_INPUT = $(SRCDIR)/instr.gperf
-GPERF_OUTPUT = $(SRCDIR)/instr_hash.h
-SRCFILES = $(wildcard $(SRCDIR)/*.c)
-OBJFILES = $(patsubst $(SRCDIR)/%.c,$(BINDIR)/%.o,$(SRCFILES))
-ASMFILES = $(patsubst $(SRCDIR)/%.c,$(ASMDIR)/%.s,$(SRCFILES))
 
-all: $(GPERF_OUTPUT) sivm
+# tutti i file .c nelle sottocartelle
+SRCFILES = $(shell find $(SRCDIR) -name "*.c")
+OBJFILES = $(patsubst $(SRCDIR)/%,$(BINDIR)/%,$(SRCFILES:.c=.o))
+ASMFILES = $(patsubst $(SRCDIR)/%,$(ASMDIR)/%,$(SRCFILES:.c=.s))
+
+all: sivm
 
 sivm: $(OBJFILES)
 	$(CC) $(CFLAGS) $(DFLAGS) -o $@ $(OBJFILES) $(LIBFLAGS)
 
-$(BINDIR)/%.o: $(SRCDIR)/%.c | $(BINDIR)
+# Compilazione file C in oggetti
+$(BINDIR)/%.o: $(SRCDIR)/%.c
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) $(DFLAGS) -c $< -o $@ $(LIBFLAGS)
 
-$(BINDIR)/%.o: $(SRCDIR)/%.cu | $(BINDIR)
-	$(NVCC) -dc $(CUDAFLAGS) $(INCLUDES) $< -o $@  
+# Generazione assembly
+asm: $(ASMFILES)
 
-asm: $(GPERF_OUTPUT) $(ASMFILES)
-
-$(GPERF_OUTPUT): $(GPERF_INPUT)
-	gperf -L C -t -N inrstr_lookup -K mnem $< > $@
-
-$(ASMDIR)/%.s: $(SRCDIR)/%.c | $(ASMDIR)
+$(ASMDIR)/%.s: $(SRCDIR)/%.c
+	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -S -masm=intel $< -o $@ $(LIBFLAGS)
 
-$(BINDIR) $(ASMDIR):
-	mkdir -p $@
-
+# Pulizia completa
 .PHONY: clean
 clean:
-	rm -rf $(BINDIR)/*.o $(ASMDIR)/*.s $(GPERF_OUTPUT) sivm
+	rm -rf $(BINDIR) $(ASMDIR)
