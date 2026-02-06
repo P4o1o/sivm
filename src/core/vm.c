@@ -70,6 +70,94 @@
     memcpy((out), &_fb, 8); \
 } while(0)
 
+#define store_float(vm, addr, fval) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 4) || ((addr) & 3))) goto L_VM_ERR_INVALID_ADDR; \
+    float _fv = (float)(fval); \
+    uint32_t _fb; \
+    memcpy(&_fb, &_fv, 4); \
+    _fb = LE32(_fb); \
+    memcpy(&(vm)->mem[(addr)], &_fb, 4); \
+} while(0)
+
+#define load_float(vm, addr, out) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 4) || ((addr) & 3))) goto L_VM_ERR_INVALID_ADDR; \
+    uint32_t _fb; \
+    memcpy(&_fb, &(vm)->mem[(addr)], 4); \
+    _fb = LE32(_fb); \
+    float _fv; \
+    memcpy(&_fv, &_fb, 4); \
+    *(out) = (double)_fv; \
+} while(0)
+
+
+static force_inline uint64_t clz64(uint64_t x) {
+    if (x == 0) return 64;
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+    return (uint64_t)__builtin_clzll(x);
+#else
+    uint64_t n = 0;
+    if (!(x & 0xFFFFFFFF00000000ULL)) { n += 32; x <<= 32; }
+    if (!(x & 0xFFFF000000000000ULL)) { n += 16; x <<= 16; }
+    if (!(x & 0xFF00000000000000ULL)) { n +=  8; x <<=  8; }
+    if (!(x & 0xF000000000000000ULL)) { n +=  4; x <<=  4; }
+    if (!(x & 0xC000000000000000ULL)) { n +=  2; x <<=  2; }
+    if (!(x & 0x8000000000000000ULL)) { n +=  1; }
+    return n;
+#endif
+}
+
+static force_inline uint64_t ctz64(uint64_t x) {
+    if (x == 0) return 64;
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+    return (uint64_t)__builtin_ctzll(x);
+#else
+    uint64_t n = 0;
+    if (!(x & 0x00000000FFFFFFFFULL)) { n += 32; x >>= 32; }
+    if (!(x & 0x000000000000FFFFULL)) { n += 16; x >>= 16; }
+    if (!(x & 0x00000000000000FFULL)) { n +=  8; x >>=  8; }
+    if (!(x & 0x000000000000000FULL)) { n +=  4; x >>=  4; }
+    if (!(x & 0x0000000000000003ULL)) { n +=  2; x >>=  2; }
+    if (!(x & 0x0000000000000001ULL)) { n +=  1; }
+    return n;
+#endif
+}
+
+static force_inline uint64_t popcnt64(uint64_t x) {
+#if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+    return (uint64_t)__builtin_popcountll(x);
+#else
+    x = x - ((x >> 1) & 0x5555555555555555ULL);
+    x = (x & 0x3333333333333333ULL) + ((x >> 2) & 0x3333333333333333ULL);
+    x = (x + (x >> 4)) & 0x0F0F0F0F0F0F0F0FULL;
+    return (x * 0x0101010101010101ULL) >> 56;
+#endif
+}
+
+static force_inline uint64_t brev64(uint64_t x) {
+    x = ((x & 0x5555555555555555ULL) << 1)  | ((x >> 1)  & 0x5555555555555555ULL);
+    x = ((x & 0x3333333333333333ULL) << 2)  | ((x >> 2)  & 0x3333333333333333ULL);
+    x = ((x & 0x0F0F0F0F0F0F0F0FULL) << 4) | ((x >> 4)  & 0x0F0F0F0F0F0F0F0FULL);
+    return BSWAP64(x);
+}
+
+static force_inline uint64_t fclass_double(double d) {
+    uint64_t bits;
+    memcpy(&bits, &d, 8);
+    uint64_t sign = bits >> 63;
+    uint64_t exp  = (bits >> 52) & 0x7FF;
+    uint64_t frac = bits & 0x000FFFFFFFFFFFFFULL;
+
+    if (exp == 0x7FF) {
+        if (frac == 0) return sign ? FCLASS_NEG_INF : FCLASS_POS_INF;
+        return (frac & (1ULL << 51)) ? FCLASS_QNAN : FCLASS_SNAN;
+    }
+    if (exp == 0) {
+        if (frac == 0) return sign ? FCLASS_NEG_ZERO : FCLASS_POS_ZERO;
+        return sign ? FCLASS_NEG_SUBN : FCLASS_POS_SUBN;
+    }
+    return sign ? FCLASS_NEG_NORM : FCLASS_POS_NORM;
+}
+
 #define fetch(env, core) do { \
     address _fpc = (core)->pc; \
     load32((env), _fpc, &instruction); \
@@ -122,7 +210,10 @@ void run(struct VM *env, uint64_t core_num) {
         [OP_HALT]      = &&L_OP_HALT,
         [OP_SYSCALL]   = &&L_OP_SYSCALL,
         [OP_BREAK]     = &&L_OP_BREAK,
-        [0x04 ... 0x07]= &&L_DEFAULT,
+        [OP_CPUID]     = &&L_OP_CPUID,
+        [OP_AUIPC]     = &&L_OP_AUIPC,
+        [OP_MOVZ]      = &&L_OP_MOVZ,
+        [OP_MOVK]      = &&L_OP_MOVK,
         [OP_ADDI]      = &&L_OP_ADDI,
         [OP_SUBI]      = &&L_OP_SUBI,
         [OP_ANDI]      = &&L_OP_ANDI,
@@ -130,11 +221,15 @@ void run(struct VM *env, uint64_t core_num) {
         [OP_XORI]      = &&L_OP_XORI,
         [OP_SLTI]      = &&L_OP_SLTI,
         [OP_SLTIU]     = &&L_OP_SLTIU,
-        [0x0F]         = &&L_DEFAULT,
+        [OP_MULI]      = &&L_OP_MULI,
         [OP_SLLI]      = &&L_OP_SLLI,
         [OP_SRLI]      = &&L_OP_SRLI,
         [OP_SRAI]      = &&L_OP_SRAI,
-        [0x13 ... 0x17]= &&L_DEFAULT,
+        [OP_ADDWI]     = &&L_OP_ADDWI,
+        [OP_SUBWI]     = &&L_OP_SUBWI,
+        [OP_SLLWI]     = &&L_OP_SLLWI,
+        [OP_SRLWI]     = &&L_OP_SRLWI,
+        [OP_SRAWI]     = &&L_OP_SRAWI,
         [OP_LB]        = &&L_OP_LB,
         [OP_LBU]       = &&L_OP_LBU,
         [OP_LH]        = &&L_OP_LH,
@@ -147,25 +242,90 @@ void run(struct VM *env, uint64_t core_num) {
         [OP_SH]        = &&L_OP_SH,
         [OP_SW]        = &&L_OP_SW,
         [OP_SD]        = &&L_OP_SD,
-        [0x24 ... 0x27]= &&L_DEFAULT,
+        [OP_FLW]       = &&L_OP_FLW,
+        [OP_FSW]       = &&L_OP_FSW,
+        [OP_BEQZ]      = &&L_OP_BEQZ,
+        [OP_BNEZ]      = &&L_OP_BNEZ,
         [OP_BEQ]       = &&L_OP_BEQ,
         [OP_BNE]       = &&L_OP_BNE,
         [OP_BLT]       = &&L_OP_BLT,
         [OP_BGE]       = &&L_OP_BGE,
         [OP_BLTU]      = &&L_OP_BLTU,
         [OP_BGEU]      = &&L_OP_BGEU,
-        [0x2E ... 0x2F]= &&L_DEFAULT,
+        [OP_BGTZ]      = &&L_OP_BGTZ,
+        [OP_BLEZ]      = &&L_OP_BLEZ,
         [OP_JAL]       = &&L_OP_JAL,
         [OP_JALR]      = &&L_OP_JALR,
-        [0x32 ... 0x38]= &&L_DEFAULT,
+        [OP_ALU]       = &&L_OP_ALU,
+        [OP_FPU]       = &&L_OP_FPU,
+        [OP_ATOMIC]    = &&L_OP_ATOMIC,
+        [OP_ADDUI]     = &&L_OP_ADDUI,
+        [OP_LEA]       = &&L_OP_LEA,
+        [OP_PCREL]     = &&L_OP_PCREL,
+        [OP_NORI]      = &&L_OP_NORI,
         [OP_FLD]       = &&L_OP_FLD,
         [OP_FSD]       = &&L_OP_FSD,
-        [0x3B ... 0x3D]= &&L_DEFAULT,
+        [OP_BLTZ]      = &&L_OP_BLTZ,
+        [OP_BGEZ]      = &&L_OP_BGEZ,
+        [OP_JALI]      = &&L_OP_JALI,
         [OP_FENCE]     = &&L_OP_FENCE,
         [OP_ECALL]     = &&L_OP_ECALL,
-        // ===== UNUSED [0x40-0x7F] =====
-        [0x40 ... 0x7F]= &&L_DEFAULT,
-        // ===== ALU FUNCT [0x80-0x92] =====
+        // ===== FUNCT CODES [0x40-0xFF] =====
+        // Word ALU [0x40-0x49]
+        [FUNCT_ADDW]   = &&L_FUNCT_ADDW,
+        [FUNCT_SUBW]   = &&L_FUNCT_SUBW,
+        [FUNCT_MULW]   = &&L_FUNCT_MULW,
+        [FUNCT_DIVW]   = &&L_FUNCT_DIVW,
+        [FUNCT_DIVUW]  = &&L_FUNCT_DIVUW,
+        [FUNCT_REMW]   = &&L_FUNCT_REMW,
+        [FUNCT_REMUW]  = &&L_FUNCT_REMUW,
+        [FUNCT_SLLW]   = &&L_FUNCT_SLLW,
+        [FUNCT_SRLW]   = &&L_FUNCT_SRLW,
+        [FUNCT_SRAW]   = &&L_FUNCT_SRAW,
+        [0x4A ... 0x4F]= &&L_DEFAULT,
+        // Bit Manipulation [0x50-0x5F]
+        [FUNCT_NOT]    = &&L_FUNCT_NOT,
+        [FUNCT_NEG]    = &&L_FUNCT_NEG,
+        [FUNCT_CLZ]    = &&L_FUNCT_CLZ,
+        [FUNCT_CTZ]    = &&L_FUNCT_CTZ,
+        [FUNCT_POPCNT] = &&L_FUNCT_POPCNT,
+        [FUNCT_BSWAP]  = &&L_FUNCT_BSWAP,
+        [FUNCT_ROL]    = &&L_FUNCT_ROL,
+        [FUNCT_ROR]    = &&L_FUNCT_ROR,
+        [FUNCT_SEXTB]  = &&L_FUNCT_SEXTB,
+        [FUNCT_SEXTH]  = &&L_FUNCT_SEXTH,
+        [FUNCT_SEXTW]  = &&L_FUNCT_SEXTW,
+        [FUNCT_ZEXTH]  = &&L_FUNCT_ZEXTH,
+        [FUNCT_ZEXTW]  = &&L_FUNCT_ZEXTW,
+        [FUNCT_BREV]   = &&L_FUNCT_BREV,
+        [FUNCT_BEXT]   = &&L_FUNCT_BEXT,
+        [FUNCT_BDEP]   = &&L_FUNCT_BDEP,
+        // Conditional/MinMax [0x60-0x6C]
+        [FUNCT_CMOVZ]  = &&L_FUNCT_CMOVZ,
+        [FUNCT_CMOVNZ] = &&L_FUNCT_CMOVNZ,
+        [FUNCT_CMOVLT] = &&L_FUNCT_CMOVLT,
+        [FUNCT_CMOVGE] = &&L_FUNCT_CMOVGE,
+        [FUNCT_MIN]    = &&L_FUNCT_MIN,
+        [FUNCT_MINU]   = &&L_FUNCT_MINU,
+        [FUNCT_MAX]    = &&L_FUNCT_MAX,
+        [FUNCT_MAXU]   = &&L_FUNCT_MAXU,
+        [FUNCT_ABS]    = &&L_FUNCT_ABS,
+        [FUNCT_SEQ]    = &&L_FUNCT_SEQ,
+        [FUNCT_SNE]    = &&L_FUNCT_SNE,
+        [FUNCT_SGT]    = &&L_FUNCT_SGT,
+        [FUNCT_SGTU]   = &&L_FUNCT_SGTU,
+        [0x6D ... 0x6F]= &&L_DEFAULT,
+        // Wide multiply / bit extra [0x70-0x77]
+        [FUNCT_MULHSW] = &&L_FUNCT_MULHSW,
+        [FUNCT_MULHUW] = &&L_FUNCT_MULHUW,
+        [FUNCT_MADD]   = &&L_FUNCT_MADD,
+        [FUNCT_MSUB]   = &&L_FUNCT_MSUB,
+        [FUNCT_BCLR]   = &&L_FUNCT_BCLR,
+        [FUNCT_BINV]   = &&L_FUNCT_BINV,
+        [FUNCT_ANDN]   = &&L_FUNCT_ANDN,
+        [FUNCT_ORN]    = &&L_FUNCT_ORN,
+        [0x78 ... 0x7F]= &&L_DEFAULT,
+        // ALU core [0x80-0x92]
         [FUNCT_ADD]    = &&L_FUNCT_ADD,
         [FUNCT_SUB]    = &&L_FUNCT_SUB,
         [FUNCT_MUL]    = &&L_FUNCT_MUL,
@@ -186,7 +346,7 @@ void run(struct VM *env, uint64_t core_num) {
         [FUNCT_MULH]   = &&L_FUNCT_MULH,
         [FUNCT_MULHU]  = &&L_FUNCT_MULHU,
         [0x93 ... 0x9F]= &&L_DEFAULT,
-        // ===== FPU FUNCT [0xA0-0xD2] =====
+        // FPU Arithmetic [0xA0-0xAF]
         [FUNCT_FADD]   = &&L_FUNCT_FADD,
         [FUNCT_FSUB]   = &&L_FUNCT_FSUB,
         [FUNCT_FMUL]   = &&L_FUNCT_FMUL,
@@ -196,17 +356,43 @@ void run(struct VM *env, uint64_t core_num) {
         [FUNCT_FNEG]   = &&L_FUNCT_FNEG,
         [FUNCT_FMIN]   = &&L_FUNCT_FMIN,
         [FUNCT_FMAX]   = &&L_FUNCT_FMAX,
-        [0xA9 ... 0xAF]= &&L_DEFAULT,
+        [FUNCT_FMADD]  = &&L_FUNCT_FMADD,
+        [FUNCT_FMSUB]  = &&L_FUNCT_FMSUB,
+        [FUNCT_FNMADD] = &&L_FUNCT_FNMADD,
+        [FUNCT_FNMSUB] = &&L_FUNCT_FNMSUB,
+        [FUNCT_FCOPYSIGN] = &&L_FUNCT_FCOPYSIGN,
+        [FUNCT_FROUND] = &&L_FUNCT_FROUND,
+        [FUNCT_FFLOOR] = &&L_FUNCT_FFLOOR,
+        // FPU Conversion [0xB0-0xB9]
         [FUNCT_FCVTW]  = &&L_FUNCT_FCVTW,
         [FUNCT_FCVTD]  = &&L_FUNCT_FCVTD,
-        [0xB2 ... 0xBF]= &&L_DEFAULT,
+        [FUNCT_FCVTUW] = &&L_FUNCT_FCVTUW,
+        [FUNCT_FCVTDU] = &&L_FUNCT_FCVTDU,
+        [FUNCT_FCVTW32]= &&L_FUNCT_FCVTW32,
+        [FUNCT_FCVTD32]= &&L_FUNCT_FCVTD32,
+        [FUNCT_FCEIL]  = &&L_FUNCT_FCEIL,
+        [FUNCT_FTRUNC] = &&L_FUNCT_FTRUNC,
+        [FUNCT_FCLASS] = &&L_FUNCT_FCLASS,
+        [FUNCT_FRINT]  = &&L_FUNCT_FRINT,
+        [0xBA ... 0xBF]= &&L_DEFAULT,
+        // FPU Move/Transfer [0xC0-0xC4]
         [FUNCT_FMOV]   = &&L_FUNCT_FMOV,
-        [0xC1 ... 0xCF]= &&L_DEFAULT,
+        [FUNCT_FMVTX]  = &&L_FUNCT_FMVTX,
+        [FUNCT_FMVFX]  = &&L_FUNCT_FMVFX,
+        [FUNCT_FSGNJN] = &&L_FUNCT_FSGNJN,
+        [FUNCT_FSGNJX] = &&L_FUNCT_FSGNJX,
+        [0xC5 ... 0xCF]= &&L_DEFAULT,
+        // FPU Compare [0xD0-0xD7]
         [FUNCT_FEQ]    = &&L_FUNCT_FEQ,
         [FUNCT_FLT]    = &&L_FUNCT_FLT,
         [FUNCT_FLE]    = &&L_FUNCT_FLE,
-        [0xD3 ... 0xEF]= &&L_DEFAULT,
-        // ===== ATOMIC FUNCT [0xF0-0xF8] =====
+        [FUNCT_FGT]    = &&L_FUNCT_FGT,
+        [FUNCT_FGE]    = &&L_FUNCT_FGE,
+        [FUNCT_FNEQ]   = &&L_FUNCT_FNEQ,
+        [FUNCT_FORD]   = &&L_FUNCT_FORD,
+        [FUNCT_FUNORD] = &&L_FUNCT_FUNORD,
+        [0xD8 ... 0xEF]= &&L_DEFAULT,
+        // Atomic [0xF0-0xF8]
         [FUNCT_LR]     = &&L_FUNCT_LR,
         [FUNCT_SC]     = &&L_FUNCT_SC,
         [FUNCT_SWAP]   = &&L_FUNCT_SWAP,
@@ -233,6 +419,52 @@ DISPATCH_START
 
     INSTR_CASE(OP_BREAK)
         goto L_VM_ERR_BREAKPOINT;
+
+    INSTR_CASE(OP_CPUID)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint16_t sel = INSTR_IMM16(instruction);
+            uint64_t val = 0;
+            switch (sel) {
+                case CPUID_VERSION:  val = 0x00020000; break; // v2.0
+                case CPUID_REG_NUM:  val = REG_NUM; break;
+                case CPUID_FREG_NUM: val = FREG_NUM; break;
+                case CPUID_MEM_SIZE: val = MEM_SIZE; break;
+                case CPUID_CORE_NUM: val = CORE_NUM; break;
+                case CPUID_FEATURES: val = 0x07; break; // ALU+FPU+ATOMIC
+                case CPUID_ENDIAN:   val = ENDIAN; break;
+            }
+            WRITE_REG(core, rd, val);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_AUIPC)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t imm = SIGN_EXT21(INSTR_IMM21(instruction));
+            WRITE_REG(core, rd, (core->pc - 4) + (imm << 16));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_MOVZ)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t hw = INSTR_RN(instruction) & 0x03;
+            uint64_t val = (uint64_t)INSTR_IMM16(instruction) << (hw * 16);
+            WRITE_REG(core, rd, val);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_MOVK)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t hw = INSTR_RN(instruction) & 0x03;
+            uint8_t shift = hw * 16;
+            uint64_t mask = ~(0xFFFFULL << shift);
+            uint64_t val = (core->reg[rd] & mask) | ((uint64_t)INSTR_IMM16(instruction) << shift);
+            WRITE_REG(core, rd, val);
+        }
+        DISPATCH_NEXT
 
     // ========== ALU IMMEDIATE ==========
     INSTR_CASE(OP_ADDI)
@@ -297,6 +529,15 @@ DISPATCH_START
             WRITE_REG(core, rd, (core->reg[rn] < imm) ? 1 : 0);
         }
         DISPATCH_NEXT
+    
+    INSTR_CASE(OP_MULI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            int64_t imm = SIGN_EXT16(INSTR_IMM16(instruction));
+            WRITE_REG(core, rd, (uint64_t)((int64_t)core->reg[rn] * imm));
+        }
+        DISPATCH_NEXT
 
     // ========== SHIFT IMMEDIATE ==========
     INSTR_CASE(OP_SLLI)
@@ -323,6 +564,52 @@ DISPATCH_START
             uint8_t rn = INSTR_RN(instruction);
             uint8_t shamt = INSTR_IMM16(instruction) & 0x3F;
             WRITE_REG(core, rd, (uint64_t)((int64_t)core->reg[rn] >> shamt));
+        }
+        DISPATCH_NEXT
+    
+    // ========== WORD (32-BIT) IMMEDIATE ==========
+    INSTR_CASE(OP_ADDWI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            int64_t imm = SIGN_EXT16(INSTR_IMM16(instruction));
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[rn] + (uint32_t)imm));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_SUBWI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            int64_t imm = SIGN_EXT16(INSTR_IMM16(instruction));
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[rn] - (uint32_t)imm));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_SLLWI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            uint8_t shamt = INSTR_IMM16(instruction) & 0x1F;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[rn] << shamt));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_SRLWI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            uint8_t shamt = INSTR_IMM16(instruction) & 0x1F;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[rn] >> shamt));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_SRAWI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            uint8_t shamt = INSTR_IMM16(instruction) & 0x1F;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)((int32_t)(uint32_t)core->reg[rn] >> shamt)));
         }
         DISPATCH_NEXT
 
@@ -460,7 +747,49 @@ DISPATCH_START
         }
         DISPATCH_NEXT
 
+    // ========== FLOAT LOAD/STORE (single precision) ==========
+    INSTR_CASE(OP_FLW)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
+            address addr = core->reg[rn] + offset;
+            load_float(env, addr, &core->freg[fd]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_FSW)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
+            address addr = core->reg[rn] + offset;
+            store_float(env, addr, core->freg[fd]);
+        }
+        DISPATCH_NEXT
+
     // ========== BRANCH INSTRUCTIONS ==========
+
+    // ========== COMPACT BRANCH (compare to zero) ==========
+    INSTR_CASE(OP_BEQZ)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
+            if (core->reg[rd] == 0)
+                core->pc += offset - 4;
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_BNEZ)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
+            if (core->reg[rd] != 0)
+                core->pc += offset - 4;
+        }
+        DISPATCH_NEXT
+
+
     INSTR_CASE(OP_BEQ)
         {
             uint8_t rd = INSTR_RD(instruction);
@@ -520,6 +849,24 @@ DISPATCH_START
                 core->pc += offset - 4;
         }
         DISPATCH_NEXT
+    
+    INSTR_CASE(OP_BGTZ)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
+            if ((int64_t)core->reg[rd] > 0)
+                core->pc += offset - 4;
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_BLEZ)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
+            if ((int64_t)core->reg[rd] <= 0)
+                core->pc += offset - 4;
+        }
+        DISPATCH_NEXT
 
     // ========== JUMP INSTRUCTIONS ==========
     INSTR_CASE(OP_JAL)
@@ -539,6 +886,42 @@ DISPATCH_START
             address target = (core->reg[rn] + offset) & ~1ULL;
             WRITE_REG(core, rd, core->pc);
             core->pc = target;
+        }
+        DISPATCH_NEXT
+
+    // ========== EXTENDED OPCODES ==========
+    INSTR_CASE(OP_ADDUI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            uint64_t imm = INSTR_IMM16(instruction);
+            WRITE_REG(core, rd, core->reg[rn] + imm);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_LEA)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            int64_t imm = SIGN_EXT16(INSTR_IMM16(instruction));
+            WRITE_REG(core, rd, core->reg[rn] + imm);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_PCREL)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t imm = SIGN_EXT21(INSTR_IMM21(instruction));
+            WRITE_REG(core, rd, (core->pc - 4) + imm);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_NORI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t rn = INSTR_RN(instruction);
+            uint64_t imm = INSTR_IMM16(instruction);
+            WRITE_REG(core, rd, ~(core->reg[rn] | imm));
         }
         DISPATCH_NEXT
 
@@ -572,6 +955,87 @@ DISPATCH_START
         goto L_VM_SYSCALL;
 
     // ========== ALU FUNCT ==========
+    INSTR_CASE(FUNCT_ADDW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[INSTR_RN(instruction)] + (uint32_t)core->reg[INSTR_RM(instruction)]));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SUBW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[INSTR_RN(instruction)] - (uint32_t)core->reg[INSTR_RM(instruction)]));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MULW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)((int32_t)(uint32_t)core->reg[INSTR_RN(instruction)] * (int32_t)(uint32_t)core->reg[INSTR_RM(instruction)])));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_DIVW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int32_t b = (int32_t)(uint32_t)core->reg[INSTR_RM(instruction)];
+            if (UNLIKELY(!b)) goto L_VM_ERR_DIV_BY_ZERO;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)((int32_t)(uint32_t)core->reg[INSTR_RN(instruction)] / b)));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_DIVUW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint32_t b = (uint32_t)core->reg[INSTR_RM(instruction)];
+            if (UNLIKELY(!b)) goto L_VM_ERR_DIV_BY_ZERO;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[INSTR_RN(instruction)] / b));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_REMW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int32_t b = (int32_t)(uint32_t)core->reg[INSTR_RM(instruction)];
+            if (UNLIKELY(!b)) goto L_VM_ERR_DIV_BY_ZERO;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)((int32_t)(uint32_t)core->reg[INSTR_RN(instruction)] % b)));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_REMUW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint32_t b = (uint32_t)core->reg[INSTR_RM(instruction)];
+            if (UNLIKELY(!b)) goto L_VM_ERR_DIV_BY_ZERO;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[INSTR_RN(instruction)] % b));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SLLW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t shamt = core->reg[INSTR_RM(instruction)] & 0x1F;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[INSTR_RN(instruction)] << shamt));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SRLW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t shamt = core->reg[INSTR_RM(instruction)] & 0x1F;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)core->reg[INSTR_RN(instruction)] >> shamt));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SRAW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t shamt = core->reg[INSTR_RM(instruction)] & 0x1F;
+            WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)((int32_t)(uint32_t)core->reg[INSTR_RN(instruction)] >> shamt)));
+        }
+        DISPATCH_NEXT
+
     INSTR_CASE(FUNCT_ADD)
         {
             uint8_t rd = INSTR_RD(instruction);
@@ -716,6 +1180,225 @@ DISPATCH_START
             WRITE_REG(core, rd, (uint64_t)(r >> 64));
         }
         DISPATCH_NEXT
+    
+     // ======== WIDE MULTIPLY / BIT EXTRA FUNCT ========
+    INSTR_CASE(FUNCT_MULHSW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t r = (int64_t)(int32_t)(uint32_t)core->reg[INSTR_RN(instruction)] *
+                        (int64_t)(int32_t)(uint32_t)core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, (uint64_t)(r >> 32));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MULHUW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t r = (uint64_t)(uint32_t)core->reg[INSTR_RN(instruction)] *
+                         (uint64_t)(uint32_t)core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, r >> 32);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MADD)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t product = core->reg[INSTR_RN(instruction)] * core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, core->reg[rd] + product);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MSUB)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t product = core->reg[INSTR_RN(instruction)] * core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, core->reg[rd] - product);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_BCLR)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t bit = core->reg[INSTR_RM(instruction)] & 0x3F;
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] & ~(1ULL << bit));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_BINV)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t bit = core->reg[INSTR_RM(instruction)] & 0x3F;
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] ^ (1ULL << bit));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_ANDN)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] & ~core->reg[INSTR_RM(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_ORN)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] | ~core->reg[INSTR_RM(instruction)]); }
+        DISPATCH_NEXT
+
+    // ======== BIT MANIPULATION FUNCT ========
+    INSTR_CASE(FUNCT_NOT)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, ~core->reg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_NEG)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (uint64_t)(-(int64_t)core->reg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_CLZ)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, clz64(core->reg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_CTZ)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, ctz64(core->reg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_POPCNT)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, popcnt64(core->reg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_BSWAP)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, BSWAP64(core->reg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_ROL)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t val = core->reg[INSTR_RN(instruction)];
+            uint8_t shamt = core->reg[INSTR_RM(instruction)] & 0x3F;
+            WRITE_REG(core, rd, (val << shamt) | (val >> (64 - shamt)));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_ROR)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t val = core->reg[INSTR_RN(instruction)];
+            uint8_t shamt = core->reg[INSTR_RM(instruction)] & 0x3F;
+            WRITE_REG(core, rd, (val >> shamt) | (val << (64 - shamt)));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SEXTB)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (uint64_t)(int64_t)(int8_t)(uint8_t)core->reg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SEXTH)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (uint64_t)(int64_t)(int16_t)(uint16_t)core->reg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SEXTW)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (uint64_t)SEXT32(core->reg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_ZEXTH)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] & 0xFFFF); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_ZEXTW)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] & 0xFFFFFFFF); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_BREV)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, brev64(core->reg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_BEXT)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t bit = core->reg[INSTR_RM(instruction)] & 0x3F;
+            WRITE_REG(core, rd, (core->reg[INSTR_RN(instruction)] >> bit) & 1);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_BDEP)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint8_t bit = core->reg[INSTR_RM(instruction)] & 0x3F;
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] | (1ULL << bit));
+        }
+        DISPATCH_NEXT
+
+    // ======== CONDITIONAL MOVE / MINMAX / COMPARE FUNCT ========
+    INSTR_CASE(FUNCT_CMOVZ)
+        { uint8_t rd = INSTR_RD(instruction); if (core->reg[INSTR_RM(instruction)] == 0) WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_CMOVNZ)
+        { uint8_t rd = INSTR_RD(instruction); if (core->reg[INSTR_RM(instruction)] != 0) WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_CMOVLT)
+        { uint8_t rd = INSTR_RD(instruction); if ((int64_t)core->reg[INSTR_RM(instruction)] < 0) WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_CMOVGE)
+        { uint8_t rd = INSTR_RD(instruction); if ((int64_t)core->reg[INSTR_RM(instruction)] >= 0) WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MIN)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t a = (int64_t)core->reg[INSTR_RN(instruction)];
+            int64_t b = (int64_t)core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, (uint64_t)(a < b ? a : b));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MINU)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t a = core->reg[INSTR_RN(instruction)];
+            uint64_t b = core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, a < b ? a : b);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MAX)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t a = (int64_t)core->reg[INSTR_RN(instruction)];
+            int64_t b = (int64_t)core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, (uint64_t)(a > b ? a : b));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MAXU)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t a = core->reg[INSTR_RN(instruction)];
+            uint64_t b = core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, a > b ? a : b);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_ABS)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t v = (int64_t)core->reg[INSTR_RN(instruction)];
+            WRITE_REG(core, rd, (uint64_t)(v < 0 ? -v : v));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SEQ)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (core->reg[INSTR_RN(instruction)] == core->reg[INSTR_RM(instruction)]) ? 1 : 0); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SNE)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (core->reg[INSTR_RN(instruction)] != core->reg[INSTR_RM(instruction)]) ? 1 : 0); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SGT)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, ((int64_t)core->reg[INSTR_RN(instruction)] > (int64_t)core->reg[INSTR_RM(instruction)]) ? 1 : 0); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SGTU)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (core->reg[INSTR_RN(instruction)] > core->reg[INSTR_RM(instruction)]) ? 1 : 0); }
+        DISPATCH_NEXT
 
     // ========== FPU FUNCT ==========
     INSTR_CASE(FUNCT_FADD)
@@ -781,6 +1464,35 @@ DISPATCH_START
         }
         DISPATCH_NEXT
 
+    INSTR_CASE(FUNCT_FMADD)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = fma(core->freg[INSTR_RN(instruction)], core->freg[INSTR_RM(instruction)], core->freg[fd]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FMSUB)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = fma(core->freg[INSTR_RN(instruction)], core->freg[INSTR_RM(instruction)], -core->freg[fd]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FNMADD)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = fma(-core->freg[INSTR_RN(instruction)], core->freg[INSTR_RM(instruction)], core->freg[fd]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FNMSUB)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = fma(-core->freg[INSTR_RN(instruction)], core->freg[INSTR_RM(instruction)], -core->freg[fd]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FCOPYSIGN)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = copysign(core->freg[INSTR_RN(instruction)], core->freg[INSTR_RM(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FROUND)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = round(core->freg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FFLOOR)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = floor(core->freg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    // ======== FPU CONVERSION FUNCT ========
     INSTR_CASE(FUNCT_FCVTW)
         {
             uint8_t rd = INSTR_RD(instruction);
@@ -795,12 +1507,83 @@ DISPATCH_START
         }
         DISPATCH_NEXT
 
+    INSTR_CASE(FUNCT_FCVTUW)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (uint64_t)core->freg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FCVTDU)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = (double)core->reg[INSTR_RN(instruction)]; }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FCVTW32)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (uint64_t)SEXT32((uint32_t)(int32_t)core->freg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FCVTD32)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = (double)(int32_t)(uint32_t)core->reg[INSTR_RN(instruction)]; }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FCEIL)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = ceil(core->freg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FTRUNC)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = trunc(core->freg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FCLASS)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, fclass_double(core->freg[INSTR_RN(instruction)])); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FRINT)
+        { uint8_t fd = INSTR_RD(instruction); core->freg[fd] = rint(core->freg[INSTR_RN(instruction)]); }
+        DISPATCH_NEXT
+
+    // ======== FPU MOVE/TRANSFER FUNCT ========
+
     INSTR_CASE(FUNCT_FMOV)
         {
             uint8_t fd = INSTR_RD(instruction);
             core->freg[fd] = core->freg[INSTR_RN(instruction)];
         }
         DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FMVTX)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t bits;
+            memcpy(&bits, &core->freg[INSTR_RN(instruction)], 8);
+            WRITE_REG(core, rd, bits);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FMVFX)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            uint64_t bits = core->reg[INSTR_RN(instruction)];
+            memcpy(&core->freg[fd], &bits, 8);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FSGNJN)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = copysign(core->freg[INSTR_RN(instruction)], -core->freg[INSTR_RM(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FSGNJX)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            uint64_t a, b;
+            memcpy(&a, &core->freg[INSTR_RN(instruction)], 8);
+            memcpy(&b, &core->freg[INSTR_RM(instruction)], 8);
+            uint64_t result = (a & ~(1ULL << 63)) | ((a ^ b) & (1ULL << 63));
+            memcpy(&core->freg[fd], &result, 8);
+        }
+        DISPATCH_NEXT
+
+    // ======== FPU COMPARE FUNCT ========
 
     INSTR_CASE(FUNCT_FEQ)
         {
@@ -823,18 +1606,46 @@ DISPATCH_START
         }
         DISPATCH_NEXT
 
+    INSTR_CASE(FUNCT_FGT)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (core->freg[INSTR_RN(instruction)] > core->freg[INSTR_RM(instruction)]) ? 1 : 0); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FGE)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (core->freg[INSTR_RN(instruction)] >= core->freg[INSTR_RM(instruction)]) ? 1 : 0); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FNEQ)
+        { uint8_t rd = INSTR_RD(instruction); WRITE_REG(core, rd, (core->freg[INSTR_RN(instruction)] != core->freg[INSTR_RM(instruction)]) ? 1 : 0); }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FORD)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            double a = core->freg[INSTR_RN(instruction)];
+            double b = core->freg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, (!isnan(a) && !isnan(b)) ? 1 : 0);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FUNORD)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            double a = core->freg[INSTR_RN(instruction)];
+            double b = core->freg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, (isnan(a) || isnan(b)) ? 1 : 0);
+        }
+        DISPATCH_NEXT
+
     // ========== ATOMIC FUNCT ==========
     INSTR_CASE(FUNCT_LR)
         {
             uint8_t rd = INSTR_RD(instruction);
             address addr = core->reg[INSTR_RN(instruction)];
             if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
-            MEM_LOCK(env);
-            uint64_t _v; memcpy(&_v, &env->mem[addr], 8); _v = LE64(_v);
-            WRITE_REG(core, rd, _v);
+            uint64_t val; load64(env, addr, &val);
+            WRITE_REG(core, rd, val);
             core->reservation = addr;
             core->reservation_valid = true;
-            MEM_UNLOCK(env);
         }
         DISPATCH_NEXT
 
@@ -842,17 +1653,13 @@ DISPATCH_START
         {
             uint8_t rd = INSTR_RD(instruction);
             address addr = core->reg[INSTR_RN(instruction)];
-            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
-            MEM_LOCK(env);
             if (core->reservation_valid && core->reservation == addr) {
-                uint64_t _sv = LE64(core->reg[INSTR_RM(instruction)]);
-                memcpy(&env->mem[addr], &_sv, 8);
+                store64(env, addr, core->reg[INSTR_RM(instruction)]);
                 WRITE_REG(core, rd, 0);
             } else {
                 WRITE_REG(core, rd, 1);
             }
             core->reservation_valid = false;
-            MEM_UNLOCK(env);
         }
         DISPATCH_NEXT
 
@@ -862,10 +1669,10 @@ DISPATCH_START
             address addr = core->reg[INSTR_RN(instruction)];
             if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
             MEM_LOCK(env);
-            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
+            uint64_t _raw; memcpy(&_raw, &env->mem[addr], 8); _raw = LE64(_raw);
             uint64_t _nv = LE64(core->reg[INSTR_RM(instruction)]);
             memcpy(&env->mem[addr], &_nv, 8);
-            WRITE_REG(core, rd, _old);
+            WRITE_REG(core, rd, _raw);
             MEM_UNLOCK(env);
         }
         DISPATCH_NEXT
@@ -876,10 +1683,10 @@ DISPATCH_START
             address addr = core->reg[INSTR_RN(instruction)];
             if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
             MEM_LOCK(env);
-            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
-            uint64_t _nv = LE64(_old + core->reg[INSTR_RM(instruction)]);
+            uint64_t _raw; memcpy(&_raw, &env->mem[addr], 8); _raw = LE64(_raw);
+            uint64_t _nv = LE64(_raw + core->reg[INSTR_RM(instruction)]);
             memcpy(&env->mem[addr], &_nv, 8);
-            WRITE_REG(core, rd, _old);
+            WRITE_REG(core, rd, _raw);
             MEM_UNLOCK(env);
         }
         DISPATCH_NEXT
@@ -890,10 +1697,10 @@ DISPATCH_START
             address addr = core->reg[INSTR_RN(instruction)];
             if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
             MEM_LOCK(env);
-            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
-            uint64_t _nv = LE64(_old & core->reg[INSTR_RM(instruction)]);
+            uint64_t _raw; memcpy(&_raw, &env->mem[addr], 8); _raw = LE64(_raw);
+            uint64_t _nv = LE64(_raw & core->reg[INSTR_RM(instruction)]);
             memcpy(&env->mem[addr], &_nv, 8);
-            WRITE_REG(core, rd, _old);
+            WRITE_REG(core, rd, _raw);
             MEM_UNLOCK(env);
         }
         DISPATCH_NEXT
@@ -904,10 +1711,10 @@ DISPATCH_START
             address addr = core->reg[INSTR_RN(instruction)];
             if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
             MEM_LOCK(env);
-            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
-            uint64_t _nv = LE64(_old | core->reg[INSTR_RM(instruction)]);
+            uint64_t _raw; memcpy(&_raw, &env->mem[addr], 8); _raw = LE64(_raw);
+            uint64_t _nv = LE64(_raw | core->reg[INSTR_RM(instruction)]);
             memcpy(&env->mem[addr], &_nv, 8);
-            WRITE_REG(core, rd, _old);
+            WRITE_REG(core, rd, _raw);
             MEM_UNLOCK(env);
         }
         DISPATCH_NEXT
@@ -918,10 +1725,10 @@ DISPATCH_START
             address addr = core->reg[INSTR_RN(instruction)];
             if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
             MEM_LOCK(env);
-            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
-            uint64_t _nv = LE64(_old ^ core->reg[INSTR_RM(instruction)]);
+            uint64_t _raw; memcpy(&_raw, &env->mem[addr], 8); _raw = LE64(_raw);
+            uint64_t _nv = LE64(_raw ^ core->reg[INSTR_RM(instruction)]);
             memcpy(&env->mem[addr], &_nv, 8);
-            WRITE_REG(core, rd, _old);
+            WRITE_REG(core, rd, _raw);
             MEM_UNLOCK(env);
         }
         DISPATCH_NEXT
