@@ -29,10 +29,7 @@ typedef enum {
     OP_HALT     = 0x01,
     OP_SYSCALL  = 0x02,
     OP_BREAK    = 0x03,
-    
-    // ALU Register-Register (usa FUNCT per sub-operazione)
-    OP_ALU      = 0x04,
-    
+
     // ALU Immediate
     OP_ADDI     = 0x08,
     OP_SUBI     = 0x09,
@@ -41,12 +38,12 @@ typedef enum {
     OP_XORI     = 0x0C,
     OP_SLTI     = 0x0D,  // Set Less Than Immediate
     OP_SLTIU    = 0x0E,  // Set Less Than Immediate Unsigned
-    
+
     // Shift Immediate
     OP_SLLI     = 0x10,  // Shift Left Logical Immediate
     OP_SRLI     = 0x11,  // Shift Right Logical Immediate
     OP_SRAI     = 0x12,  // Shift Right Arithmetic Immediate
-    
+
     // Load
     OP_LB       = 0x18,  // Load Byte (sign-extended)
     OP_LBU      = 0x19,  // Load Byte Unsigned
@@ -56,13 +53,13 @@ typedef enum {
     OP_LWU      = 0x1D,  // Load Word Unsigned
     OP_LD       = 0x1E,  // Load Doubleword
     OP_LUI      = 0x1F,  // Load Upper Immediate
-    
+
     // Store
     OP_SB       = 0x20,  // Store Byte
     OP_SH       = 0x21,  // Store Halfword
     OP_SW       = 0x22,  // Store Word
     OP_SD       = 0x23,  // Store Doubleword
-    
+
     // Branch
     OP_BEQ      = 0x28,  // Branch if Equal
     OP_BNE      = 0x29,  // Branch if Not Equal
@@ -70,78 +67,68 @@ typedef enum {
     OP_BGE      = 0x2B,  // Branch if Greater or Equal
     OP_BLTU     = 0x2C,  // Branch if Less Than Unsigned
     OP_BGEU     = 0x2D,  // Branch if Greater or Equal Unsigned
-    
+
     // Jump
     OP_JAL      = 0x30,  // Jump and Link
     OP_JALR     = 0x31,  // Jump and Link Register
-    
+
     // Floating Point
-    OP_FPU      = 0x38,  // FPU operations (usa FUNCT)
     OP_FLD      = 0x39,  // Float Load Double
     OP_FSD      = 0x3A,  // Float Store Double
-    
-    // Atomic
-    OP_ATOMIC   = 0x3C,  // Atomic operations (usa FUNCT)
-    
+
     // Misc
     OP_FENCE    = 0x3E,
     OP_ECALL    = 0x3F,
+
+    // ALU FUNCT codes (per OP_ALU)
+    FUNCT_ADD   = 0x80,
+    FUNCT_SUB   = 0x81,
+    FUNCT_MUL   = 0x82,
+    FUNCT_DIV   = 0x83,
+    FUNCT_DIVU  = 0x84,
+    FUNCT_REM   = 0x85,
+    FUNCT_REMU  = 0x86,
+    FUNCT_AND   = 0x87,
+    FUNCT_OR    = 0x88,
+    FUNCT_XOR   = 0x89,
+    FUNCT_NOR   = 0x8A,
+    FUNCT_SLL   = 0x8B,  // Shift Left Logical
+    FUNCT_SRL   = 0x8C,  // Shift Right Logical
+    FUNCT_SRA   = 0x8D,  // Shift Right Arithmetic
+    FUNCT_SLT   = 0x8E,  // Set Less Than
+    FUNCT_SLTU  = 0x8F,  // Set Less Than Unsigned
+    FUNCT_MOV   = 0x90,  // Move register
+    FUNCT_MULH  = 0x91,  // Multiply High (signed)
+    FUNCT_MULHU = 0x92,  // Multiply High (unsigned)
+
+    // FPU FUNCT codes (per OP_FPU)
+    FUNCT_FADD  = 0xA0,
+    FUNCT_FSUB  = 0xA1,
+    FUNCT_FMUL  = 0xA2,
+    FUNCT_FDIV  = 0xA3,
+    FUNCT_FSQRT = 0xA4,
+    FUNCT_FABS  = 0xA5,
+    FUNCT_FNEG  = 0xA6,
+    FUNCT_FMIN  = 0xA7,
+    FUNCT_FMAX  = 0xA8,
+    FUNCT_FCVTW = 0xB0,  // Convert to int
+    FUNCT_FCVTD = 0xB1,  // Convert from int
+    FUNCT_FMOV  = 0xC0,  // Move float register
+    FUNCT_FEQ   = 0xD0,  // Float Equal
+    FUNCT_FLT   = 0xD1,  // Float Less Than
+    FUNCT_FLE   = 0xD2,  // Float Less or Equal
+
+    // Atomic FUNCT codes (per OP_ATOMIC)
+    FUNCT_LR    = 0xF0,  // Load Reserved
+    FUNCT_SC    = 0xF1,  // Store Conditional
+    FUNCT_SWAP  = 0xF2,  // Atomic Swap
+    FUNCT_ADD_A = 0xF3,  // Atomic Add
+    FUNCT_AND_A = 0xF4,  // Atomic And
+    FUNCT_OR_A  = 0xF5,  // Atomic Or
+    FUNCT_XOR_A = 0xF6,  // Atomic Xor
+    FUNCT_MAX_A = 0xF7,  // Atomic Max
+    FUNCT_MIN_A = 0xF8,  // Atomic Min
 } Opcode;
-
-// ALU FUNCT codes (per OP_ALU)
-typedef enum {
-    FUNCT_ADD   = 0x00,
-    FUNCT_SUB   = 0x01,
-    FUNCT_MUL   = 0x02,
-    FUNCT_DIV   = 0x03,
-    FUNCT_DIVU  = 0x04,
-    FUNCT_REM   = 0x05,
-    FUNCT_REMU  = 0x06,
-    FUNCT_AND   = 0x10,
-    FUNCT_OR    = 0x11,
-    FUNCT_XOR   = 0x12,
-    FUNCT_NOR   = 0x13,
-    FUNCT_SLL   = 0x20,  // Shift Left Logical
-    FUNCT_SRL   = 0x21,  // Shift Right Logical
-    FUNCT_SRA   = 0x22,  // Shift Right Arithmetic
-    FUNCT_SLT   = 0x30,  // Set Less Than
-    FUNCT_SLTU  = 0x31,  // Set Less Than Unsigned
-    FUNCT_MOV   = 0x40,  // Move register
-    FUNCT_MULH  = 0x50,  // Multiply High (signed)
-    FUNCT_MULHU = 0x51,  // Multiply High (unsigned)
-} AluFunct;
-
-// FPU FUNCT codes
-typedef enum {
-    FUNCT_FADD  = 0x00,
-    FUNCT_FSUB  = 0x01,
-    FUNCT_FMUL  = 0x02,
-    FUNCT_FDIV  = 0x03,
-    FUNCT_FSQRT = 0x04,
-    FUNCT_FABS  = 0x05,
-    FUNCT_FNEG  = 0x06,
-    FUNCT_FMIN  = 0x07,
-    FUNCT_FMAX  = 0x08,
-    FUNCT_FCVTW = 0x10,  // Convert to int
-    FUNCT_FCVTD = 0x11,  // Convert from int
-    FUNCT_FMOV  = 0x20,  // Move float register
-    FUNCT_FEQ   = 0x30,  // Float Equal
-    FUNCT_FLT   = 0x31,  // Float Less Than
-    FUNCT_FLE   = 0x32,  // Float Less or Equal
-} FpuFunct;
-
-// Atomic FUNCT codes
-typedef enum {
-    FUNCT_LR    = 0x00,  // Load Reserved
-    FUNCT_SC    = 0x01,  // Store Conditional
-    FUNCT_SWAP  = 0x02,  // Atomic Swap
-    FUNCT_ADD_A = 0x03,  // Atomic Add
-    FUNCT_AND_A = 0x04,  // Atomic And
-    FUNCT_OR_A  = 0x05,  // Atomic Or
-    FUNCT_XOR_A = 0x06,  // Atomic Xor
-    FUNCT_MAX_A = 0x07,  // Atomic Max
-    FUNCT_MIN_A = 0x08,  // Atomic Min
-} AtomicFunct;
 
 typedef enum {
     SYS_EXIT    = 0,

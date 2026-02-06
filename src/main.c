@@ -28,7 +28,7 @@ int main(void) {
     uint32_t program[] = {
         encode_i_type(OP_ADDI, 1, 0, 5),     // r1 = 5
         encode_i_type(OP_ADDI, 2, 0, 3),     // r2 = 3
-        encode_r_type(OP_ALU, 3, 1, 2, FUNCT_ADD),  // r3 = r1 + r2
+        encode_i_type(FUNCT_ADD, 3, 1, 2),  // r3 = r1 + r2
         encode_i_type(OP_HALT, 0, 0, 0),    // halt
     };
     
@@ -53,9 +53,9 @@ int main(void) {
     printf("  r1 = %lu (expected 5)\n", vm.core[0].reg[1]);
     printf("  r2 = %lu (expected 3)\n", vm.core[0].reg[2]);
     printf("  r3 = %lu (expected 8)\n", vm.core[0].reg[3]);
-    printf("  Error code: %d (expected %d = VM_ERR_HALTED)\n", vm.core[0].error, VM_ERR_HALTED);
+    printf("  Error code: %d (expected %d = VM_ERR_HALTED)\n", vm.core[0].status, VM_ERR_HALTED);
     
-    if (vm.core[0].reg[3] == 8 && vm.core[0].error == VM_ERR_HALTED) {
+    if (vm.core[0].reg[3] == 8 && vm.core[0].status == VM_ERR_HALTED) {
         printf("  [PASS]\n\n");
     } else {
         printf("  [FAIL]\n\n");
@@ -124,7 +124,7 @@ int main(void) {
     uint32_t program4[] = {
         encode_i_type(OP_ADDI, 1, 0, 7),       // r1 = 7
         encode_i_type(OP_ADDI, 2, 0, 6),       // r2 = 6
-        encode_r_type(OP_ALU, 3, 1, 2, FUNCT_MUL),  // r3 = r1 * r2
+        encode_i_type(FUNCT_MUL, 3, 1, 2),  // r3 = r1 * r2
         encode_i_type(OP_HALT, 0, 0, 0),
     };
     

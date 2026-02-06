@@ -1,4 +1,4 @@
-CC = gcc
+CC ?= gcc
 CFLAGS = -O3 -Wall -std=c18 -I./src -I./src/lib -I./src/core -I./src/lib/thread
 DFLAGS = -ggdb3
 LIBFLAGS = -lm -lpthread -lrt

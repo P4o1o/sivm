@@ -10,8 +10,12 @@
 #include <stdbool.h>
 #include <string.h>
 #include <math.h>
-#include <setjmp.h>
 #include "instruction.h"
+
+#if ENDIAN == 2
+    #warning "Unknown endianness. Defaulting to little-endian."
+    #define ENDIAN_LITTLE 1
+#endif
 
 #define REG_NUM      32
 #define FREG_NUM     32
@@ -37,9 +41,16 @@
 typedef uint64_t address;
 typedef uint32_t instr;
 
-// Forward declarations
-struct VM;
-struct Core;
+typedef enum {
+    VM_OK = 0,
+    VM_SYSCALL,
+    VM_ERR_INVALID_ADDR,
+    VM_ERR_INVALID_OPCODE,
+    VM_ERR_DIV_BY_ZERO,
+    VM_ERR_HALTED,
+    VM_ERR_BREAKPOINT,
+    VM_ERR_SYSCALL,
+} VMSignal;
 
 struct Core {
     uint64_t reg[REG_NUM];      // General purpose registers
@@ -51,8 +62,6 @@ struct Core {
     bool     reservation_valid;
     uint64_t cycles;            // Cycle counter
     uint64_t instret;           // Instructions retired
-    jmp_buf  jmp;               // For exception handling
-    uint16_t error;             // Error code
 };
 
 typedef struct Core Core;
@@ -61,23 +70,12 @@ struct VM {
     Core        core[CORE_NUM];
     uint8_t     mem[MEM_SIZE];
     atomic_flag mem_lock;       // Per operazioni atomiche
-    bool        running;
+    thread      threads[CORE_NUM];  // Thread per ogni core (per parallelismo)
     // I/O callback
     int (*syscall_handler)(struct VM* vm, uint64_t core_num, uint64_t syscall_num);
 };
 
 typedef struct VM VM;
-
-typedef enum {
-    VM_OK = 0,
-    VM_SYSCALL,
-    VM_ERR_INVALID_ADDR,
-    VM_ERR_INVALID_OPCODE,
-    VM_ERR_DIV_BY_ZERO,
-    VM_ERR_HALTED,
-    VM_ERR_BREAKPOINT,
-    VM_ERR_SYSCALL,
-} VMSignal;
 
 // Function declarations
 void vm_init(struct VM *vm);

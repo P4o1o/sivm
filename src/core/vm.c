@@ -1,237 +1,239 @@
 #include "vm.h"
 
-// Forward declarations for helper functions
-static void execute_alu(struct VM *env, struct Core *core, instr instruction);
-static void execute_fpu(struct VM *env, struct Core *core, instr instruction);
-static void execute_atomic(struct VM *env, struct Core *core, instr instruction);
-static void handle_syscall(struct VM *env, uint64_t core_num);
 
-static force_inline bool check_addr(address addr, size_t size) {
-    return (addr + size) <= MEM_SIZE;
-}
+// ===== VM MEMORY ACCESS MACROS =====
+// Tutte le macro usano goto L_VM_ERR_INVALID_ADDR per error path.
+// Zero overhead nel fast path (solo UNLIKELY branch).
 
-static force_inline void store8(VM *vm, address addr, uint8_t val) {
-    if (UNLIKELY(!check_addr(addr, 1))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    vm->mem[addr] = val;
-}
+#define CHECK_ADDR(addr, size) (((addr) + (size)) <= MEM_SIZE)
 
-static force_inline void store16(VM *vm, address addr, uint16_t val) {
-    if (UNLIKELY(!check_addr(addr, 2))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    #ifdef ENDIAN_LITTLE
-        memcpy(&vm->mem[addr], &val, 2);
-    #else
-        uint16_t le = BSWAP16(val);
-        memcpy(&vm->mem[addr], &le, 2);
-    #endif
-}
+#define store8(vm, addr, val) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 1))) goto L_VM_ERR_INVALID_ADDR; \
+    (vm)->mem[(addr)] = (val); \
+} while(0)
 
-static force_inline void store32(VM *vm, address addr, uint32_t val) {
-    if (UNLIKELY(!check_addr(addr, 4))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    #ifdef ENDIAN_LITTLE
-        memcpy(&vm->mem[addr], &val, 4);
-    #else
-        uint32_t le = BSWAP32(val);
-        memcpy(&vm->mem[addr], &le, 4);
-    #endif
-}
+#define store16(vm, addr, val) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 2))) goto L_VM_ERR_INVALID_ADDR; \
+    uint16_t _v = LE16(val); \
+    memcpy(&(vm)->mem[(addr)], &_v, 2); \
+} while(0)
 
-static force_inline void store64(VM *vm, address addr, uint64_t val) {
-    if (UNLIKELY(!check_addr(addr, 8))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    #ifdef ENDIAN_LITTLE
-        memcpy(&vm->mem[addr], &val, 8);
-    #else
-        uint64_t le = BSWAP64(val);
-        memcpy(&vm->mem[addr], &le, 8);
-    #endif
-}
+#define store32(vm, addr, val) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 4))) goto L_VM_ERR_INVALID_ADDR; \
+    uint32_t _v = LE32(val); \
+    memcpy(&(vm)->mem[(addr)], &_v, 4); \
+} while(0)
 
-static force_inline uint8_t load8(VM *vm, address addr) {
-    if (UNLIKELY(!check_addr(addr, 1))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    return vm->mem[addr];
-}
+#define store64(vm, addr, val) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 8))) goto L_VM_ERR_INVALID_ADDR; \
+    uint64_t _v = LE64(val); \
+    memcpy(&(vm)->mem[(addr)], &_v, 8); \
+} while(0)
 
-static force_inline uint16_t load16(VM *vm, address addr) {
-    if (UNLIKELY(!check_addr(addr, 2))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    uint16_t val;
-    #ifdef ENDIAN_LITTLE
-        memcpy(&val, &vm->mem[addr], 2);
-    #else
-        uint16_t le;
-        memcpy(&le, &vm->mem[addr], 2);
-        val = BSWAP16(le);
-    #endif
-    return val;
-}
+#define load8(vm, addr, out) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 1))) goto L_VM_ERR_INVALID_ADDR; \
+    *(out) = (vm)->mem[(addr)]; \
+} while(0)
 
-static force_inline uint32_t load32(VM *vm, address addr) {
-    if (UNLIKELY(!check_addr(addr, 4))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    uint32_t val;
-    #ifdef ENDIAN_LITTLE
-        memcpy(&val, &vm->mem[addr], 4);
-    #else
-        uint32_t le;
-        memcpy(&le, &vm->mem[addr], 4);
-        val = BSWAP32(le);
-    #endif
-    return val;
-}
+#define load16(vm, addr, out) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 2))) goto L_VM_ERR_INVALID_ADDR; \
+    memcpy((out), &(vm)->mem[(addr)], 2); \
+    *(out) = LE16(*(out)); \
+} while(0)
 
-static force_inline uint64_t load64(VM *vm, address addr) {
-    if (UNLIKELY(!check_addr(addr, 8))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    uint64_t val;
-    #ifdef ENDIAN_LITTLE
-        memcpy(&val, &vm->mem[addr], 8);
-    #else
-        uint64_t le;
-        memcpy(&le, &vm->mem[addr], 8);
-        val = BSWAP64(le);
-    #endif
-    return val;
-}
+#define load32(vm, addr, out) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 4))) goto L_VM_ERR_INVALID_ADDR; \
+    memcpy((out), &(vm)->mem[(addr)], 4); \
+    *(out) = LE32(*(out)); \
+} while(0)
 
-static force_inline void store_double(VM *vm, address addr, double val) {
-    if (UNLIKELY(!check_addr(addr, 8) || (addr & 7))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    uint64_t bits;
-    memcpy(&bits, &val, 8);
-    store64(vm, addr, bits);
-}
+#define load64(vm, addr, out) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 8))) goto L_VM_ERR_INVALID_ADDR; \
+    memcpy((out), &(vm)->mem[(addr)], 8); \
+    *(out) = LE64(*(out)); \
+} while(0)
 
-static force_inline double load_double(VM *vm, address addr) {
-    if (UNLIKELY(!check_addr(addr, 8) || (addr & 7))) longjmp(vm->core[0].jmp, VM_ERR_INVALID_ADDR);
-    uint64_t bits = load64(vm, addr);
-    double val;
-    memcpy(&val, &bits, 8);
-    return val;
-}
+// Float load/store — single bounds+alignment check, nessun doppio controllo
+#define store_double(vm, addr, val) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 8) || ((addr) & 7))) goto L_VM_ERR_INVALID_ADDR; \
+    uint64_t _fb; \
+    memcpy(&_fb, &(val), 8); \
+    _fb = LE64(_fb); \
+    memcpy(&(vm)->mem[(addr)], &_fb, 8); \
+} while(0)
 
-static force_inline instr fetch(struct VM *env, struct Core *core) {
-    address pc = core->pc;
-    if (UNLIKELY(!check_addr(pc, 4))) longjmp(core->jmp, VM_ERR_INVALID_ADDR);
-    instr instruction = 0;
-    #ifdef ENDIAN_LITTLE
-        memcpy(&instruction, &env->mem[pc], 4);
-    #else
-        instr le_instr = 0;
-        memcpy(&le_instr, &env->mem[pc], 4);
-        instruction = BSWAP32(le_instr);
-    #endif
-    core->pc += 4;
-    core->instret++;
-    return instruction;
-}
+#define load_double(vm, addr, out) do { \
+    if (UNLIKELY(!CHECK_ADDR((addr), 8) || ((addr) & 7))) goto L_VM_ERR_INVALID_ADDR; \
+    uint64_t _fb; \
+    memcpy(&_fb, &(vm)->mem[(addr)], 8); \
+    _fb = LE64(_fb); \
+    memcpy((out), &_fb, 8); \
+} while(0)
+
+#define fetch(env, core) do { \
+    address _fpc = (core)->pc; \
+    load32((env), _fpc, &instruction); \
+    (core)->pc += 4; \
+    (core)->instret++; \
+} while(0)
 
 // Ensure r0 is always zero
 #define WRITE_REG(core, rd, val) do { if ((rd) != REG_ZERO) (core)->reg[rd] = (val); } while(0)
 
+// Atomic lock helpers
+#define MEM_LOCK(env)   do { while (atomic_flag_test_and_set(&(env)->mem_lock)) cpu_pause(); } while(0)
+#define MEM_UNLOCK(env) atomic_flag_clear(&(env)->mem_lock)
+
+// ===== DISPATCH MACROS =====
+// Computed goto: flat table[256], opcode e funct nella stessa tabella
+// Switch: stesso switch, OP_ALU/FPU/ATOMIC fanno goto L_SWITCH_ENTRY con funct come key
 #if COMPUTED_GOTO_SUPPORTED
-    #define DISPATCH_START goto *dispatch_table[INSTR_OPCODE(instruction)];
-    #define DISPATCH_NEXT instruction = fetch(env, core); goto *dispatch_table[INSTR_OPCODE(instruction)];
-    #define INSTR_CASE(op) L_##op:
-    #define INSTR_DEFAULT L_DEFAULT:
+    #define DISPATCH_START  core->cycles++; fetch(env, core); goto *dispatch_table[INSTR_OPCODE(instruction)];
+    #define DISPATCH_NEXT   DISPATCH_START
+    #define INSTR_CASE(op)  L_##op:
+    #define INSTR_DEFAULT   L_DEFAULT:
+    #define END_SYSCALL     DISPATCH_NEXT
 #else
-    #define DISPATCH_START switch(INSTR_OPCODE(instruction)) {
-    #define DISPATCH_NEXT instruction = fetch(env, core); break;
-    #define INSTR_CASE(op) case op:
-    #define INSTR_DEFAULT default:
+// Fetch instruction at the beginning of the loop for the switch version.
+    #define DISPATCH_START  L_START_EXECUTION: while(1) { fetch(env, core); switch(INSTR_OPCODE(instruction)) {
+    #define DISPATCH_NEXT   break;
+    #define INSTR_CASE(op)  case op:
+    #define INSTR_DEFAULT   default:
+    #define END_SYSCALL     core->cycles++; goto L_START_EXECUTION
 #endif
+// In both cases an error or the exit from the VM will not increment the cycle count, as they will jump to error handling (neither it will continue the loop neither call a DISPATCH_NEXT).
 
 void vm_init(struct VM *vm) {
     memset(vm, 0, sizeof(struct VM));
     for (int i = 0; i < CORE_NUM; i++) {
         vm->core[i].reg[REG_SP] = MEM_SIZE - (i * STACK_SIZE);
         vm->core[i].pc = 0;
+        vm->core[i].status = VM_OK;
+        vm->core[i].cycles = 0;
     }
-    vm->running = true;
 }
 
 void run(struct VM *env, uint64_t core_num) {
     struct Core *core = &env->core[core_num];
     instr instruction;
-
 #if COMPUTED_GOTO_SUPPORTED
-    static void* dispatch_table[64] = {
-        [OP_NOP]     = &&L_OP_NOP,
-        [OP_HALT]    = &&L_OP_HALT,
-        [OP_SYSCALL] = &&L_OP_SYSCALL,
-        [OP_BREAK]   = &&L_OP_BREAK,
-        [OP_ALU]     = &&L_OP_ALU,
-        [0x05 ... 0x07] = &&L_DEFAULT,
-        [OP_ADDI]    = &&L_OP_ADDI,
-        [OP_SUBI]    = &&L_OP_SUBI,
-        [OP_ANDI]    = &&L_OP_ANDI,
-        [OP_ORI]     = &&L_OP_ORI,
-        [OP_XORI]    = &&L_OP_XORI,
-        [OP_SLTI]    = &&L_OP_SLTI,
-        [OP_SLTIU]   = &&L_OP_SLTIU,
-        [0x0F]       = &&L_DEFAULT,
-        [OP_SLLI]    = &&L_OP_SLLI,
-        [OP_SRLI]    = &&L_OP_SRLI,
-        [OP_SRAI]    = &&L_OP_SRAI,
-        [0x13 ... 0x17] = &&L_DEFAULT,
-        [OP_LB]      = &&L_OP_LB,
-        [OP_LBU]     = &&L_OP_LBU,
-        [OP_LH]      = &&L_OP_LH,
-        [OP_LHU]     = &&L_OP_LHU,
-        [OP_LW]      = &&L_OP_LW,
-        [OP_LWU]     = &&L_OP_LWU,
-        [OP_LD]      = &&L_OP_LD,
-        [OP_LUI]     = &&L_OP_LUI,
-        [OP_SB]      = &&L_OP_SB,
-        [OP_SH]      = &&L_OP_SH,
-        [OP_SW]      = &&L_OP_SW,
-        [OP_SD]      = &&L_OP_SD,
-        [0x24 ... 0x27] = &&L_DEFAULT,
-        [OP_BEQ]     = &&L_OP_BEQ,
-        [OP_BNE]     = &&L_OP_BNE,
-        [OP_BLT]     = &&L_OP_BLT,
-        [OP_BGE]     = &&L_OP_BGE,
-        [OP_BLTU]    = &&L_OP_BLTU,
-        [OP_BGEU]    = &&L_OP_BGEU,
-        [0x2E ... 0x2F] = &&L_DEFAULT,
-        [OP_JAL]     = &&L_OP_JAL,
-        [OP_JALR]    = &&L_OP_JALR,
-        [0x32 ... 0x37] = &&L_DEFAULT,
-        [OP_FPU]     = &&L_OP_FPU,
-        [OP_FLD]     = &&L_OP_FLD,
-        [OP_FSD]     = &&L_OP_FSD,
-        [0x3B]       = &&L_DEFAULT,
-        [OP_ATOMIC]  = &&L_OP_ATOMIC,
-        [0x3D]       = &&L_DEFAULT,
-        [OP_FENCE]   = &&L_OP_FENCE,
-        [OP_ECALL]   = &&L_OP_ECALL,
+    static void* dispatch_table[256] = {
+        // ===== OPCODES [0x00-0x3F] =====
+        [OP_NOP]       = &&L_OP_NOP,
+        [OP_HALT]      = &&L_OP_HALT,
+        [OP_SYSCALL]   = &&L_OP_SYSCALL,
+        [OP_BREAK]     = &&L_OP_BREAK,
+        [0x04 ... 0x07]= &&L_DEFAULT,
+        [OP_ADDI]      = &&L_OP_ADDI,
+        [OP_SUBI]      = &&L_OP_SUBI,
+        [OP_ANDI]      = &&L_OP_ANDI,
+        [OP_ORI]       = &&L_OP_ORI,
+        [OP_XORI]      = &&L_OP_XORI,
+        [OP_SLTI]      = &&L_OP_SLTI,
+        [OP_SLTIU]     = &&L_OP_SLTIU,
+        [0x0F]         = &&L_DEFAULT,
+        [OP_SLLI]      = &&L_OP_SLLI,
+        [OP_SRLI]      = &&L_OP_SRLI,
+        [OP_SRAI]      = &&L_OP_SRAI,
+        [0x13 ... 0x17]= &&L_DEFAULT,
+        [OP_LB]        = &&L_OP_LB,
+        [OP_LBU]       = &&L_OP_LBU,
+        [OP_LH]        = &&L_OP_LH,
+        [OP_LHU]       = &&L_OP_LHU,
+        [OP_LW]        = &&L_OP_LW,
+        [OP_LWU]       = &&L_OP_LWU,
+        [OP_LD]        = &&L_OP_LD,
+        [OP_LUI]       = &&L_OP_LUI,
+        [OP_SB]        = &&L_OP_SB,
+        [OP_SH]        = &&L_OP_SH,
+        [OP_SW]        = &&L_OP_SW,
+        [OP_SD]        = &&L_OP_SD,
+        [0x24 ... 0x27]= &&L_DEFAULT,
+        [OP_BEQ]       = &&L_OP_BEQ,
+        [OP_BNE]       = &&L_OP_BNE,
+        [OP_BLT]       = &&L_OP_BLT,
+        [OP_BGE]       = &&L_OP_BGE,
+        [OP_BLTU]      = &&L_OP_BLTU,
+        [OP_BGEU]      = &&L_OP_BGEU,
+        [0x2E ... 0x2F]= &&L_DEFAULT,
+        [OP_JAL]       = &&L_OP_JAL,
+        [OP_JALR]      = &&L_OP_JALR,
+        [0x32 ... 0x38]= &&L_DEFAULT,
+        [OP_FLD]       = &&L_OP_FLD,
+        [OP_FSD]       = &&L_OP_FSD,
+        [0x3B ... 0x3D]= &&L_DEFAULT,
+        [OP_FENCE]     = &&L_OP_FENCE,
+        [OP_ECALL]     = &&L_OP_ECALL,
+        // ===== UNUSED [0x40-0x7F] =====
+        [0x40 ... 0x7F]= &&L_DEFAULT,
+        // ===== ALU FUNCT [0x80-0x92] =====
+        [FUNCT_ADD]    = &&L_FUNCT_ADD,
+        [FUNCT_SUB]    = &&L_FUNCT_SUB,
+        [FUNCT_MUL]    = &&L_FUNCT_MUL,
+        [FUNCT_DIV]    = &&L_FUNCT_DIV,
+        [FUNCT_DIVU]   = &&L_FUNCT_DIVU,
+        [FUNCT_REM]    = &&L_FUNCT_REM,
+        [FUNCT_REMU]   = &&L_FUNCT_REMU,
+        [FUNCT_AND]    = &&L_FUNCT_AND,
+        [FUNCT_OR]     = &&L_FUNCT_OR,
+        [FUNCT_XOR]    = &&L_FUNCT_XOR,
+        [FUNCT_NOR]    = &&L_FUNCT_NOR,
+        [FUNCT_SLL]    = &&L_FUNCT_SLL,
+        [FUNCT_SRL]    = &&L_FUNCT_SRL,
+        [FUNCT_SRA]    = &&L_FUNCT_SRA,
+        [FUNCT_SLT]    = &&L_FUNCT_SLT,
+        [FUNCT_SLTU]   = &&L_FUNCT_SLTU,
+        [FUNCT_MOV]    = &&L_FUNCT_MOV,
+        [FUNCT_MULH]   = &&L_FUNCT_MULH,
+        [FUNCT_MULHU]  = &&L_FUNCT_MULHU,
+        [0x93 ... 0x9F]= &&L_DEFAULT,
+        // ===== FPU FUNCT [0xA0-0xD2] =====
+        [FUNCT_FADD]   = &&L_FUNCT_FADD,
+        [FUNCT_FSUB]   = &&L_FUNCT_FSUB,
+        [FUNCT_FMUL]   = &&L_FUNCT_FMUL,
+        [FUNCT_FDIV]   = &&L_FUNCT_FDIV,
+        [FUNCT_FSQRT]  = &&L_FUNCT_FSQRT,
+        [FUNCT_FABS]   = &&L_FUNCT_FABS,
+        [FUNCT_FNEG]   = &&L_FUNCT_FNEG,
+        [FUNCT_FMIN]   = &&L_FUNCT_FMIN,
+        [FUNCT_FMAX]   = &&L_FUNCT_FMAX,
+        [0xA9 ... 0xAF]= &&L_DEFAULT,
+        [FUNCT_FCVTW]  = &&L_FUNCT_FCVTW,
+        [FUNCT_FCVTD]  = &&L_FUNCT_FCVTD,
+        [0xB2 ... 0xBF]= &&L_DEFAULT,
+        [FUNCT_FMOV]   = &&L_FUNCT_FMOV,
+        [0xC1 ... 0xCF]= &&L_DEFAULT,
+        [FUNCT_FEQ]    = &&L_FUNCT_FEQ,
+        [FUNCT_FLT]    = &&L_FUNCT_FLT,
+        [FUNCT_FLE]    = &&L_FUNCT_FLE,
+        [0xD3 ... 0xEF]= &&L_DEFAULT,
+        // ===== ATOMIC FUNCT [0xF0-0xF8] =====
+        [FUNCT_LR]     = &&L_FUNCT_LR,
+        [FUNCT_SC]     = &&L_FUNCT_SC,
+        [FUNCT_SWAP]   = &&L_FUNCT_SWAP,
+        [FUNCT_ADD_A]  = &&L_FUNCT_ADD_A,
+        [FUNCT_AND_A]  = &&L_FUNCT_AND_A,
+        [FUNCT_OR_A]   = &&L_FUNCT_OR_A,
+        [FUNCT_XOR_A]  = &&L_FUNCT_XOR_A,
+        [FUNCT_MAX_A]  = &&L_FUNCT_MAX_A,
+        [FUNCT_MIN_A]  = &&L_FUNCT_MIN_A,
+        [0xF9 ... 0xFF]= &&L_DEFAULT,
     };
-#endif
-
-L_START_EXECUTION:
-    if ((core->error = setjmp(core->jmp)) == 0) {
-        instruction = fetch(env, core);
-        
-#if COMPUTED_GOTO_SUPPORTED
-        DISPATCH_START
-#else
-        while(1) {
-            DISPATCH_START
-#endif
-
+#endif    
+DISPATCH_START
     // ========== SYSTEM INSTRUCTIONS ==========
     INSTR_CASE(OP_NOP)
         core->cycles++;
         DISPATCH_NEXT
 
     INSTR_CASE(OP_HALT)
-        core->flags |= FLAG_HALTED;
-        longjmp(core->jmp, VM_ERR_HALTED);
+        goto L_VM_ERR_HALTED;
 
     INSTR_CASE(OP_SYSCALL)
-        longjmp(core->jmp, VM_SYSCALL);
+        goto L_VM_SYSCALL;
 
     INSTR_CASE(OP_BREAK)
-        longjmp(core->jmp, VM_ERR_BREAKPOINT);
-
-    // ========== ALU REGISTER-REGISTER ==========
-    INSTR_CASE(OP_ALU)
-        execute_alu(env, core, instruction);
-        DISPATCH_NEXT
+        goto L_VM_ERR_BREAKPOINT;
 
     // ========== ALU IMMEDIATE ==========
     INSTR_CASE(OP_ADDI)
@@ -332,8 +334,9 @@ L_START_EXECUTION:
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
             address addr = core->reg[rn] + offset;
-            int8_t val = (int8_t)load8(env, addr);
-            WRITE_REG(core, rd, (uint64_t)(int64_t)val);
+            uint8_t tmp;
+            load8(env, addr, &tmp);
+            WRITE_REG(core, rd, (uint64_t)(int64_t)(int8_t)tmp);
         }
         DISPATCH_NEXT
 
@@ -343,7 +346,9 @@ L_START_EXECUTION:
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
             address addr = core->reg[rn] + offset;
-            WRITE_REG(core, rd, load8(env, addr));
+            uint8_t tmp;
+            load8(env, addr, &tmp);
+            WRITE_REG(core, rd, (uint64_t)tmp);
         }
         DISPATCH_NEXT
 
@@ -353,8 +358,9 @@ L_START_EXECUTION:
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
             address addr = core->reg[rn] + offset;
-            int16_t val = (int16_t)load16(env, addr);
-            WRITE_REG(core, rd, (uint64_t)(int64_t)val);
+            uint16_t tmp;
+            load16(env, addr, &tmp);
+            WRITE_REG(core, rd, (uint64_t)(int64_t)(int16_t)tmp);
         }
         DISPATCH_NEXT
 
@@ -364,7 +370,9 @@ L_START_EXECUTION:
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
             address addr = core->reg[rn] + offset;
-            WRITE_REG(core, rd, load16(env, addr));
+            uint16_t tmp;
+            load16(env, addr, &tmp);
+            WRITE_REG(core, rd, (uint64_t)tmp);
         }
         DISPATCH_NEXT
 
@@ -374,8 +382,9 @@ L_START_EXECUTION:
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
             address addr = core->reg[rn] + offset;
-            int32_t val = (int32_t)load32(env, addr);
-            WRITE_REG(core, rd, (uint64_t)(int64_t)val);
+            uint32_t tmp;
+            load32(env, addr, &tmp);
+            WRITE_REG(core, rd, (uint64_t)(int64_t)(int32_t)tmp);
         }
         DISPATCH_NEXT
 
@@ -385,7 +394,9 @@ L_START_EXECUTION:
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
             address addr = core->reg[rn] + offset;
-            WRITE_REG(core, rd, load32(env, addr));
+            uint32_t tmp;
+            load32(env, addr, &tmp);
+            WRITE_REG(core, rd, (uint64_t)tmp);
         }
         DISPATCH_NEXT
 
@@ -395,7 +406,9 @@ L_START_EXECUTION:
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
             address addr = core->reg[rn] + offset;
-            WRITE_REG(core, rd, load64(env, addr));
+            uint64_t tmp;
+            load64(env, addr, &tmp);
+            WRITE_REG(core, rd, tmp);
         }
         DISPATCH_NEXT
 
@@ -454,9 +467,8 @@ L_START_EXECUTION:
             uint8_t rd = INSTR_RD(instruction);
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
-            if (core->reg[rd] == core->reg[rn]) {
-                core->pc += offset - 4;  // -4 because we already incremented
-            }
+            if (core->reg[rd] == core->reg[rn])
+                core->pc += offset - 4;
         }
         DISPATCH_NEXT
 
@@ -465,9 +477,8 @@ L_START_EXECUTION:
             uint8_t rd = INSTR_RD(instruction);
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
-            if (core->reg[rd] != core->reg[rn]) {
+            if (core->reg[rd] != core->reg[rn])
                 core->pc += offset - 4;
-            }
         }
         DISPATCH_NEXT
 
@@ -476,9 +487,8 @@ L_START_EXECUTION:
             uint8_t rd = INSTR_RD(instruction);
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
-            if ((int64_t)core->reg[rd] < (int64_t)core->reg[rn]) {
+            if ((int64_t)core->reg[rd] < (int64_t)core->reg[rn])
                 core->pc += offset - 4;
-            }
         }
         DISPATCH_NEXT
 
@@ -487,9 +497,8 @@ L_START_EXECUTION:
             uint8_t rd = INSTR_RD(instruction);
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
-            if ((int64_t)core->reg[rd] >= (int64_t)core->reg[rn]) {
+            if ((int64_t)core->reg[rd] >= (int64_t)core->reg[rn])
                 core->pc += offset - 4;
-            }
         }
         DISPATCH_NEXT
 
@@ -498,9 +507,8 @@ L_START_EXECUTION:
             uint8_t rd = INSTR_RD(instruction);
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
-            if (core->reg[rd] < core->reg[rn]) {
+            if (core->reg[rd] < core->reg[rn])
                 core->pc += offset - 4;
-            }
         }
         DISPATCH_NEXT
 
@@ -509,9 +517,8 @@ L_START_EXECUTION:
             uint8_t rd = INSTR_RD(instruction);
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
-            if (core->reg[rd] >= core->reg[rn]) {
+            if (core->reg[rd] >= core->reg[rn])
                 core->pc += offset - 4;
-            }
         }
         DISPATCH_NEXT
 
@@ -536,18 +543,14 @@ L_START_EXECUTION:
         }
         DISPATCH_NEXT
 
-    // ========== FLOATING POINT ==========
-    INSTR_CASE(OP_FPU)
-        execute_fpu(env, core, instruction);
-        DISPATCH_NEXT
-
+    // ========== FLOAT LOAD/STORE ==========
     INSTR_CASE(OP_FLD)
         {
             uint8_t fd = INSTR_RD(instruction);
             uint8_t rn = INSTR_RN(instruction);
             int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction));
             address addr = core->reg[rn] + offset;
-            core->freg[fd] = load_double(env, addr);
+            load_double(env, addr, &core->freg[fd]);
         }
         DISPATCH_NEXT
 
@@ -561,327 +564,460 @@ L_START_EXECUTION:
         }
         DISPATCH_NEXT
 
-    // ========== ATOMIC ==========
-    INSTR_CASE(OP_ATOMIC)
-        execute_atomic(env, core, instruction);
-        DISPATCH_NEXT
-
     // ========== MISC ==========
     INSTR_CASE(OP_FENCE)
         atomic_fence_seq_cst();
         DISPATCH_NEXT
 
     INSTR_CASE(OP_ECALL)
-        longjmp(core->jmp, VM_SYSCALL);
+        goto L_VM_SYSCALL;
 
-    INSTR_DEFAULT
-        longjmp(core->jmp, VM_ERR_INVALID_OPCODE);
+    // ========== ALU FUNCT ==========
+    INSTR_CASE(FUNCT_ADD)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] + core->reg[INSTR_RM(instruction)]);
+        }
+        DISPATCH_NEXT
 
-#if !COMPUTED_GOTO_SUPPORTED
-            }
+    INSTR_CASE(FUNCT_SUB)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] - core->reg[INSTR_RM(instruction)]);
         }
-#endif
-    } else if (core->error == VM_SYSCALL) {
-        handle_syscall(env, core_num);
-        goto L_START_EXECUTION;
-    } else {
-        // Error handling - core->error contains the error code
-        env->running = false;
-    }
-}
+        DISPATCH_NEXT
 
-// ========== ALU OPERATIONS ==========
-static force_inline void execute_alu(struct VM *env, struct Core *core, instr instruction) {
-    uint8_t rd = INSTR_RD(instruction);
-    uint8_t rn = INSTR_RN(instruction);
-    uint8_t rm = INSTR_RM(instruction);
-    uint16_t funct = INSTR_FUNCT(instruction);
-    
-    uint64_t a = core->reg[rn];
-    uint64_t b = core->reg[rm];
-    uint64_t result = 0;
-    
-    switch (funct) {
-        case FUNCT_ADD:
-            result = a + b;
-            break;
-        case FUNCT_SUB:
-            result = a - b;
-            break;
-        case FUNCT_MUL:
-            result = a * b;
-            break;
-        case FUNCT_DIV:
-            if (b == 0) longjmp(core->jmp, VM_ERR_DIV_BY_ZERO);
-            result = (uint64_t)((int64_t)a / (int64_t)b);
-            break;
-        case FUNCT_DIVU:
-            if (b == 0) longjmp(core->jmp, VM_ERR_DIV_BY_ZERO);
-            result = a / b;
-            break;
-        case FUNCT_REM:
-            if (b == 0) longjmp(core->jmp, VM_ERR_DIV_BY_ZERO);
-            result = (uint64_t)((int64_t)a % (int64_t)b);
-            break;
-        case FUNCT_REMU:
-            if (b == 0) longjmp(core->jmp, VM_ERR_DIV_BY_ZERO);
-            result = a % b;
-            break;
-        case FUNCT_AND:
-            result = a & b;
-            break;
-        case FUNCT_OR:
-            result = a | b;
-            break;
-        case FUNCT_XOR:
-            result = a ^ b;
-            break;
-        case FUNCT_NOR:
-            result = ~(a | b);
-            break;
-        case FUNCT_SLL:
-            result = a << (b & 0x3F);
-            break;
-        case FUNCT_SRL:
-            result = a >> (b & 0x3F);
-            break;
-        case FUNCT_SRA:
-            result = (uint64_t)((int64_t)a >> (b & 0x3F));
-            break;
-        case FUNCT_SLT:
-            result = ((int64_t)a < (int64_t)b) ? 1 : 0;
-            break;
-        case FUNCT_SLTU:
-            result = (a < b) ? 1 : 0;
-            break;
-        case FUNCT_MOV:
-            result = a;
-            break;
-        case FUNCT_MULH: {
-            // Signed multiply high
-            __int128 res = (__int128)(int64_t)a * (__int128)(int64_t)b;
-            result = (uint64_t)(res >> 64);
-            break;
+    INSTR_CASE(FUNCT_MUL)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] * core->reg[INSTR_RM(instruction)]);
         }
-        case FUNCT_MULHU: {
-            // Unsigned multiply high
-            __uint128_t res = (__uint128_t)a * (__uint128_t)b;
-            result = (uint64_t)(res >> 64);
-            break;
-        }
-        default:
-            longjmp(core->jmp, VM_ERR_INVALID_OPCODE);
-    }
-    
-    WRITE_REG(core, rd, result);
-    (void)env;
-}
+        DISPATCH_NEXT
 
-// ========== FPU OPERATIONS ==========
-static force_inline void execute_fpu(struct VM *env, struct Core *core, instr instruction) {
-    uint8_t fd = INSTR_RD(instruction);
-    uint8_t fn = INSTR_RN(instruction);
-    uint8_t fm = INSTR_RM(instruction);
-    uint16_t funct = INSTR_FUNCT(instruction);
-    
-    double a = core->freg[fn];
-    double b = core->freg[fm];
-    double result = 0.0;
-    
-    switch (funct) {
-        case FUNCT_FADD:
-            result = a + b;
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FSUB:
-            result = a - b;
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FMUL:
-            result = a * b;
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FDIV:
-            result = a / b;
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FSQRT:
-            result = sqrt(a);
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FABS:
-            result = fabs(a);
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FNEG:
-            result = -a;
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FMIN:
-            result = fmin(a, b);
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FMAX:
-            result = fmax(a, b);
-            core->freg[fd] = result;
-            break;
-        case FUNCT_FCVTW: {
-            // Float to int (result in integer register)
-            int64_t ival = (int64_t)a;
-            WRITE_REG(core, fd, (uint64_t)ival);
-            break;
+    INSTR_CASE(FUNCT_DIV)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t b = core->reg[INSTR_RM(instruction)];
+            if (UNLIKELY(!b)) goto L_VM_ERR_DIV_BY_ZERO;
+            WRITE_REG(core, rd, (uint64_t)((int64_t)core->reg[INSTR_RN(instruction)] / (int64_t)b));
         }
-        case FUNCT_FCVTD: {
-            // Int to float (source from integer register)
-            int64_t ival = (int64_t)core->reg[fn];
-            core->freg[fd] = (double)ival;
-            break;
-        }
-        case FUNCT_FMOV:
-            core->freg[fd] = a;
-            break;
-        case FUNCT_FEQ:
-            WRITE_REG(core, fd, (a == b) ? 1 : 0);
-            break;
-        case FUNCT_FLT:
-            WRITE_REG(core, fd, (a < b) ? 1 : 0);
-            break;
-        case FUNCT_FLE:
-            WRITE_REG(core, fd, (a <= b) ? 1 : 0);
-            break;
-        default:
-            longjmp(core->jmp, VM_ERR_INVALID_OPCODE);
-    }
-    (void)env;
-}
+        DISPATCH_NEXT
 
-// ========== ATOMIC OPERATIONS ==========
-static force_inline void execute_atomic(struct VM *env, struct Core *core, instr instruction) {
-    uint8_t rd = INSTR_RD(instruction);
-    uint8_t rn = INSTR_RN(instruction);
-    uint8_t rm = INSTR_RM(instruction);
-    uint16_t funct = INSTR_FUNCT(instruction);
-    
-    address addr = core->reg[rn];
-    
-    // Acquire lock for atomic operation
-    while (atomic_flag_test_and_set(&env->mem_lock)) {
-        cpu_pause();
-    }
-    
-    switch (funct) {
-        case FUNCT_LR: {
-            // Load Reserved
-            uint64_t val = load64(env, addr);
-            WRITE_REG(core, rd, val);
+    INSTR_CASE(FUNCT_DIVU)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t b = core->reg[INSTR_RM(instruction)];
+            if (UNLIKELY(!b)) goto L_VM_ERR_DIV_BY_ZERO;
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] / b);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_REM)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t b = core->reg[INSTR_RM(instruction)];
+            if (UNLIKELY(!b)) goto L_VM_ERR_DIV_BY_ZERO;
+            WRITE_REG(core, rd, (uint64_t)((int64_t)core->reg[INSTR_RN(instruction)] % (int64_t)b));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_REMU)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            uint64_t b = core->reg[INSTR_RM(instruction)];
+            if (UNLIKELY(!b)) goto L_VM_ERR_DIV_BY_ZERO;
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] % b);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_AND)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] & core->reg[INSTR_RM(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_OR)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] | core->reg[INSTR_RM(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_XOR)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] ^ core->reg[INSTR_RM(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_NOR)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, ~(core->reg[INSTR_RN(instruction)] | core->reg[INSTR_RM(instruction)]));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SLL)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] << (core->reg[INSTR_RM(instruction)] & 0x3F));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SRL)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] >> (core->reg[INSTR_RM(instruction)] & 0x3F));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SRA)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (uint64_t)((int64_t)core->reg[INSTR_RN(instruction)] >> (core->reg[INSTR_RM(instruction)] & 0x3F)));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SLT)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, ((int64_t)core->reg[INSTR_RN(instruction)] < (int64_t)core->reg[INSTR_RM(instruction)]) ? 1 : 0);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SLTU)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (core->reg[INSTR_RN(instruction)] < core->reg[INSTR_RM(instruction)]) ? 1 : 0);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MOV)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MULH)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            __int128 r = (__int128)(int64_t)core->reg[INSTR_RN(instruction)] *
+                         (__int128)(int64_t)core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, (uint64_t)(r >> 64));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MULHU)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            __uint128_t r = (__uint128_t)core->reg[INSTR_RN(instruction)] *
+                            (__uint128_t)core->reg[INSTR_RM(instruction)];
+            WRITE_REG(core, rd, (uint64_t)(r >> 64));
+        }
+        DISPATCH_NEXT
+
+    // ========== FPU FUNCT ==========
+    INSTR_CASE(FUNCT_FADD)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = core->freg[INSTR_RN(instruction)] + core->freg[INSTR_RM(instruction)];
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FSUB)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = core->freg[INSTR_RN(instruction)] - core->freg[INSTR_RM(instruction)];
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FMUL)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = core->freg[INSTR_RN(instruction)] * core->freg[INSTR_RM(instruction)];
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FDIV)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = core->freg[INSTR_RN(instruction)] / core->freg[INSTR_RM(instruction)];
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FSQRT)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = sqrt(core->freg[INSTR_RN(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FABS)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = fabs(core->freg[INSTR_RN(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FNEG)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = -core->freg[INSTR_RN(instruction)];
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FMIN)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = fmin(core->freg[INSTR_RN(instruction)], core->freg[INSTR_RM(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FMAX)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = fmax(core->freg[INSTR_RN(instruction)], core->freg[INSTR_RM(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FCVTW)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (uint64_t)(int64_t)core->freg[INSTR_RN(instruction)]);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FCVTD)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = (double)(int64_t)core->reg[INSTR_RN(instruction)];
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FMOV)
+        {
+            uint8_t fd = INSTR_RD(instruction);
+            core->freg[fd] = core->freg[INSTR_RN(instruction)];
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FEQ)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (core->freg[INSTR_RN(instruction)] == core->freg[INSTR_RM(instruction)]) ? 1 : 0);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FLT)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (core->freg[INSTR_RN(instruction)] < core->freg[INSTR_RM(instruction)]) ? 1 : 0);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_FLE)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            WRITE_REG(core, rd, (core->freg[INSTR_RN(instruction)] <= core->freg[INSTR_RM(instruction)]) ? 1 : 0);
+        }
+        DISPATCH_NEXT
+
+    // ========== ATOMIC FUNCT ==========
+    INSTR_CASE(FUNCT_LR)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
+            uint64_t _v; memcpy(&_v, &env->mem[addr], 8); _v = LE64(_v);
+            WRITE_REG(core, rd, _v);
             core->reservation = addr;
             core->reservation_valid = true;
-            break;
+            MEM_UNLOCK(env);
         }
-        case FUNCT_SC: {
-            // Store Conditional
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_SC)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
             if (core->reservation_valid && core->reservation == addr) {
-                store64(env, addr, core->reg[rm]);
-                WRITE_REG(core, rd, 0);  // Success
+                uint64_t _sv = LE64(core->reg[INSTR_RM(instruction)]);
+                memcpy(&env->mem[addr], &_sv, 8);
+                WRITE_REG(core, rd, 0);
             } else {
-                WRITE_REG(core, rd, 1);  // Failure
+                WRITE_REG(core, rd, 1);
             }
             core->reservation_valid = false;
-            break;
+            MEM_UNLOCK(env);
         }
-        case FUNCT_SWAP: {
-            uint64_t old = load64(env, addr);
-            store64(env, addr, core->reg[rm]);
-            WRITE_REG(core, rd, old);
-            break;
-        }
-        case FUNCT_ADD_A: {
-            uint64_t old = load64(env, addr);
-            store64(env, addr, old + core->reg[rm]);
-            WRITE_REG(core, rd, old);
-            break;
-        }
-        case FUNCT_AND_A: {
-            uint64_t old = load64(env, addr);
-            store64(env, addr, old & core->reg[rm]);
-            WRITE_REG(core, rd, old);
-            break;
-        }
-        case FUNCT_OR_A: {
-            uint64_t old = load64(env, addr);
-            store64(env, addr, old | core->reg[rm]);
-            WRITE_REG(core, rd, old);
-            break;
-        }
-        case FUNCT_XOR_A: {
-            uint64_t old = load64(env, addr);
-            store64(env, addr, old ^ core->reg[rm]);
-            WRITE_REG(core, rd, old);
-            break;
-        }
-        case FUNCT_MAX_A: {
-            int64_t old = (int64_t)load64(env, addr);
-            int64_t val = (int64_t)core->reg[rm];
-            store64(env, addr, (uint64_t)(old > val ? old : val));
-            WRITE_REG(core, rd, (uint64_t)old);
-            break;
-        }
-        case FUNCT_MIN_A: {
-            int64_t old = (int64_t)load64(env, addr);
-            int64_t val = (int64_t)core->reg[rm];
-            store64(env, addr, (uint64_t)(old < val ? old : val));
-            WRITE_REG(core, rd, (uint64_t)old);
-            break;
-        }
-        default:
-            atomic_flag_clear(&env->mem_lock);
-            longjmp(core->jmp, VM_ERR_INVALID_OPCODE);
-    }
-    
-    atomic_flag_clear(&env->mem_lock);
-}
+        DISPATCH_NEXT
 
-// ========== SYSCALL HANDLER ==========
-static force_inline void handle_syscall(struct VM *env, uint64_t core_num) {
-    struct Core *core = &env->core[core_num];
-    uint64_t syscall_num = core->reg[17];  // a7 register (like RISC-V)
-    
-    if (env->syscall_handler) {
-        int result = env->syscall_handler(env, core_num, syscall_num);
-        WRITE_REG(core, 10, (uint64_t)result);  // a0 register for return value
-    } else {
-        // Default syscall handling
-        switch (syscall_num) {
-            case SYS_EXIT:
-                core->flags |= FLAG_HALTED;
-                env->running = false;
-                break;
-            case SYS_YIELD:
-                thread_yield();
-                break;
-            case SYS_GETPID:
-                WRITE_REG(core, 10, core_num);
-                break;
-            default:
-                // Unknown syscall - set error
-                WRITE_REG(core, 10, (uint64_t)-1);
-                break;
+    INSTR_CASE(FUNCT_SWAP)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
+            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
+            uint64_t _nv = LE64(core->reg[INSTR_RM(instruction)]);
+            memcpy(&env->mem[addr], &_nv, 8);
+            WRITE_REG(core, rd, _old);
+            MEM_UNLOCK(env);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_ADD_A)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
+            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
+            uint64_t _nv = LE64(_old + core->reg[INSTR_RM(instruction)]);
+            memcpy(&env->mem[addr], &_nv, 8);
+            WRITE_REG(core, rd, _old);
+            MEM_UNLOCK(env);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_AND_A)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
+            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
+            uint64_t _nv = LE64(_old & core->reg[INSTR_RM(instruction)]);
+            memcpy(&env->mem[addr], &_nv, 8);
+            WRITE_REG(core, rd, _old);
+            MEM_UNLOCK(env);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_OR_A)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
+            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
+            uint64_t _nv = LE64(_old | core->reg[INSTR_RM(instruction)]);
+            memcpy(&env->mem[addr], &_nv, 8);
+            WRITE_REG(core, rd, _old);
+            MEM_UNLOCK(env);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_XOR_A)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
+            uint64_t _old; memcpy(&_old, &env->mem[addr], 8); _old = LE64(_old);
+            uint64_t _nv = LE64(_old ^ core->reg[INSTR_RM(instruction)]);
+            memcpy(&env->mem[addr], &_nv, 8);
+            WRITE_REG(core, rd, _old);
+            MEM_UNLOCK(env);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MAX_A)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
+            uint64_t _raw; memcpy(&_raw, &env->mem[addr], 8); _raw = LE64(_raw);
+            int64_t _old = (int64_t)_raw;
+            int64_t _val = (int64_t)core->reg[INSTR_RM(instruction)];
+            uint64_t _nv = LE64((uint64_t)(_old > _val ? _old : _val));
+            memcpy(&env->mem[addr], &_nv, 8);
+            WRITE_REG(core, rd, (uint64_t)_old);
+            MEM_UNLOCK(env);
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(FUNCT_MIN_A)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            address addr = core->reg[INSTR_RN(instruction)];
+            if (UNLIKELY(!CHECK_ADDR(addr, 8))) goto L_VM_ERR_INVALID_ADDR;
+            MEM_LOCK(env);
+            uint64_t _raw; memcpy(&_raw, &env->mem[addr], 8); _raw = LE64(_raw);
+            int64_t _old = (int64_t)_raw;
+            int64_t _val = (int64_t)core->reg[INSTR_RM(instruction)];
+            uint64_t _nv = LE64((uint64_t)(_old < _val ? _old : _val));
+            memcpy(&env->mem[addr], &_nv, 8);
+            WRITE_REG(core, rd, (uint64_t)_old);
+            MEM_UNLOCK(env);
+        }
+        DISPATCH_NEXT
+
+    INSTR_DEFAULT
+        goto L_VM_ERR_INVALID_OPCODE;
+
+#if !COMPUTED_GOTO_SUPPORTED
         }
     }
+#endif
+
+    return;
+
+L_VM_SYSCALL:
+    {
+        uint64_t syscall_num = core->reg[17];  // a7 register
+        if (env->syscall_handler) {
+            int result = env->syscall_handler(env, core_num, syscall_num);
+            WRITE_REG(core, 10, (uint64_t)result);
+        } else {
+            switch (syscall_num) {
+                case SYS_EXIT:
+                    goto L_VM_ERR_HALTED;
+                case SYS_YIELD:
+                    thread_yield();
+                    break;
+                case SYS_GETPID:
+                    WRITE_REG(core, 10, core_num);
+                    break;
+                default:
+                    WRITE_REG(core, 10, (uint64_t)-1);
+                    break;
+            }
+        }
+    }
+    END_SYSCALL
+
+L_VM_ERR_HALTED:
+    core->status = VM_ERR_HALTED;
+    return;
+L_VM_ERR_BREAKPOINT:
+    core->status = VM_ERR_BREAKPOINT;
+    return;
+L_VM_ERR_DIV_BY_ZERO:
+    core->status = VM_ERR_DIV_BY_ZERO;
+    return;
+L_VM_ERR_INVALID_OPCODE:
+    core->status = VM_ERR_INVALID_OPCODE;
+    return;
+L_VM_ERR_INVALID_ADDR:
+    core->status = VM_ERR_INVALID_ADDR;
+    return;
 }
 
 // ========== VM LOAD PROGRAM ==========
 int vm_load_program(struct VM *vm, const uint8_t *program, size_t size, address load_addr) {
-    if (load_addr + size > MEM_SIZE) {
-        return -1;
-    }
+    if (load_addr + size > MEM_SIZE) return -1;
     memcpy(&vm->mem[load_addr], program, size);
     return 0;
 }
 
 // ========== VM SET PC ==========
 void vm_set_pc(struct VM *vm, uint64_t core_num, address pc) {
-    if (core_num < CORE_NUM) {
-        vm->core[core_num].pc = pc;
-    }
+    if (core_num < CORE_NUM) vm->core[core_num].pc = pc;
 }
