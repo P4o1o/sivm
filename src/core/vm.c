@@ -101,7 +101,6 @@
     #define INSTR_DEFAULT   default:
     #define END_SYSCALL     core->cycles++; goto L_START_EXECUTION
 #endif
-// In both cases an error or the exit from the VM will not increment the cycle count, as they will jump to error handling (neither it will continue the loop neither call a DISPATCH_NEXT).
 
 void vm_init(struct VM *vm) {
     memset(vm, 0, sizeof(struct VM));
