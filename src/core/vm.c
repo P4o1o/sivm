@@ -187,7 +187,7 @@ static force_inline uint64_t fclass_double(double d) {
     #define DISPATCH_NEXT   break;
     #define INSTR_CASE(op)  case op:
     #define INSTR_DEFAULT   default:
-    #define END_SYSCALL     core->cycles++; goto L_START_EXECUTION
+    #define END_SYSCALL     core->cycles++; goto L_START_EXECUTION;
 #endif
 
 void vm_init(struct VM *vm) {
@@ -256,9 +256,9 @@ void run(struct VM *env, uint64_t core_num) {
         [OP_BLEZ]      = &&L_OP_BLEZ,
         [OP_JAL]       = &&L_OP_JAL,
         [OP_JALR]      = &&L_OP_JALR,
-        [OP_ALU]       = &&L_OP_ALU,
-        [OP_FPU]       = &&L_OP_FPU,
-        [OP_ATOMIC]    = &&L_OP_ATOMIC,
+        [OP_ALU]       = &&L_DEFAULT,
+        [OP_FPU]       = &&L_DEFAULT,
+        [OP_ATOMIC]    = &&L_DEFAULT,
         [OP_ADDUI]     = &&L_OP_ADDUI,
         [OP_LEA]       = &&L_OP_LEA,
         [OP_PCREL]     = &&L_OP_PCREL,
@@ -1320,6 +1320,33 @@ DISPATCH_START
             uint8_t rd = INSTR_RD(instruction);
             uint8_t bit = core->reg[INSTR_RM(instruction)] & 0x3F;
             WRITE_REG(core, rd, core->reg[INSTR_RN(instruction)] | (1ULL << bit));
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_BLTZ)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
+            if ((int64_t)core->reg[rd] < 0)
+                core->pc += offset - 4;
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_BGEZ)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t offset = SIGN_EXT16(INSTR_IMM16(instruction)) << 2;
+            if ((int64_t)core->reg[rd] >= 0)
+                core->pc += offset - 4;
+        }
+        DISPATCH_NEXT
+
+    INSTR_CASE(OP_JALI)
+        {
+            uint8_t rd = INSTR_RD(instruction);
+            int64_t offset = SIGN_EXT26(INSTR_IMM26(instruction)) << 2;
+            WRITE_REG(core, rd, core->pc);
+            core->pc += offset - 4;
         }
         DISPATCH_NEXT
 
